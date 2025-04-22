@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "976941164854",
+    "project_id": "mydailymeal-2b2ad",
+    "storage_bucket": "mydailymeal-2b2ad.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:976941164854:android:89b34793dc8472472aeb97",
+        "android_client_info": {
+          "package_name": "com.example.mydailymeal"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAIQcp0Hz-seDnYtskm7yKFcXsmlgfTM3k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
