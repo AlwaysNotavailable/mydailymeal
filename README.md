@@ -16,5 +16,5 @@ For help getting started with Flutter development, view the
 samples, guidance on mobile development, and a full API reference.
 
 To Link Firebase to Flutter - Access this link
-https://firebase.google.com/docs/cli#mac-linux-npm
+https://firebase.google.com/docs/cli#mac-linux-npm / 
 https://firebase.flutter.dev/docs/overview/
