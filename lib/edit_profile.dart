@@ -1,0 +1,250 @@
+import 'dart:io' as io;
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
+
+class EditProfilePage extends StatefulWidget {
+  @override
+  _EditProfilePageState createState() => _EditProfilePageState();
+}
+
+class _EditProfilePageState extends State<EditProfilePage> {
+  final TextEditingController _usernameCTRL = TextEditingController();
+  final TextEditingController _ageCTRL = TextEditingController();
+  String? _imageUrl;
+  XFile? _pickedFile;
+  DateTime? _birthDate;
+  String _gender = 'Male';
+
+  final String defaultImage = 'assets/images/defaulticon.png';
+
+  @override
+  void initState() {
+    super.initState();
+    loadUserData();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ImageProvider imageProvider;
+
+    if (_pickedFile != null) {
+      if (kIsWeb) {
+        imageProvider = NetworkImage(_pickedFile!.path);
+      } else {
+        imageProvider = FileImage(io.File(_pickedFile!.path));
+      }
+    } else if (_imageUrl != null && _imageUrl!.isNotEmpty) {
+      imageProvider = NetworkImage(_imageUrl!);
+    } else {
+      imageProvider = AssetImage(defaultImage);
+    }
+
+    return Scaffold(
+      appBar: AppBar(title: Text("Edit Profile")),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.all(20),
+        child: Column(
+          children: [
+            GestureDetector(
+              onTap: pickImage,
+              child: CircleAvatar(radius: 60, backgroundImage: imageProvider),
+            ),
+            SizedBox(height: 20),
+            TextFormField(
+              controller: _usernameCTRL,
+              keyboardType: TextInputType.text,
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Colors.black12,
+                contentPadding: EdgeInsets.symmetric(
+                  vertical: 10.0,
+                  horizontal: 20.0,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10.0),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            SizedBox(height: 20),
+            TextFormField(
+              controller: _ageCTRL,
+              readOnly: true,
+              decoration: InputDecoration(
+                hintText: "Enter Age",
+                filled: true,
+                fillColor: Colors.black12,
+                border: OutlineInputBorder(borderSide: BorderSide.none),
+              ),
+              onTap: () async {
+                final age = await showDialog<int>(
+                  context: context,
+                  builder: (context) {
+                    final TextEditingController tempAgeCtrl =
+                        TextEditingController();
+                    return AlertDialog(
+                      title: Text('Enter your age'),
+                      content: TextField(
+                        controller: tempAgeCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(hintText: 'Enter age'),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(
+                              context,
+                              int.tryParse(tempAgeCtrl.text),
+                            );
+                          },
+                          child: Text('OK'),
+                        ),
+                      ],
+                    );
+                  },
+                );
+
+                if (age != null && age > 0) {
+                  DateTime birthDate = _birthDateFromAge(age);
+                  setState(() {
+                    _birthDate = birthDate;
+                    _ageCTRL.text = age.toString();
+                  });
+                }
+              },
+            ),
+            SizedBox(height: 20),
+            DropdownButtonFormField<String>(
+              value: _gender,
+              items:
+                  ['Male', 'Female'].map((gender) {
+                    return DropdownMenuItem(value: gender, child: Text(gender));
+                  }).toList(),
+              onChanged: (value) {
+                setState(() {
+                  _gender = value!;
+                });
+              },
+              decoration: const InputDecoration(
+                filled: true,
+                fillColor: Colors.black12,
+                border: OutlineInputBorder(borderSide: BorderSide.none),
+              ),
+            ),
+            SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 43,
+              child: ElevatedButton(
+                onPressed: saveChanges,
+                child: Text(
+                  "Save Changes",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10.0),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> loadUserData() async {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final doc =
+        await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    final data = doc.data()!;
+    setState(() {
+      _usernameCTRL.text = data['username'] ?? '';
+      _gender = data['gender'] ?? 'Male';
+      if (data['birthDate'] != null) {
+        _birthDate = (data['birthDate'] as Timestamp).toDate();
+        _ageCTRL.text = _calculateAge(_birthDate!).toString();
+      }
+      _imageUrl = data['image'] ?? '';
+    });
+  }
+
+  Future<void> pickImage() async {
+    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (picked != null) {
+      setState(() {
+        _pickedFile = picked;
+      });
+    }
+  }
+
+  Future<void> saveChanges() async {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    String? imageUrl = _imageUrl;
+
+    if (_birthDate == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please enter your age')));
+      return;
+    }
+
+    int age = _calculateAge(_birthDate!);
+
+    if (_pickedFile != null) {
+      final ref = FirebaseStorage.instance.ref().child(
+        'profile_images/$uid.jpg',
+      );
+
+      if (kIsWeb) {
+        final bytes = await _pickedFile!.readAsBytes();
+        await ref.putData(bytes);
+      } else {
+        final file = io.File(_pickedFile!.path);
+        await ref.putFile(file);
+      }
+
+      imageUrl = await ref.getDownloadURL();
+    }
+
+    await FirebaseFirestore.instance.collection('users').doc(uid).update({
+      'username': _usernameCTRL.text,
+      'gender': _gender,
+      'age': age,
+      'birthDate': _birthDate,
+      'image': imageUrl,
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Profile updated!'),
+        backgroundColor: Colors.green,
+      ),
+    );
+    Navigator.pop(context);
+  }
+
+  int _calculateAge(DateTime birthDate) {
+    DateTime today = DateTime.now();
+    int age = today.year - birthDate.year;
+    if (today.month < birthDate.month ||
+        (today.month == birthDate.month && today.day < birthDate.day)) {
+      age--;
+    }
+    return age;
+  }
+
+  DateTime _birthDateFromAge(int age) {
+    final now = DateTime.now();
+    return DateTime(now.year - age, now.month, now.day);
+  }
+}

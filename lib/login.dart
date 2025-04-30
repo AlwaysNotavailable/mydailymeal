@@ -71,7 +71,10 @@ class _LoginState extends State<Login> {
                   controller: _passCTRL,
                   keyboardType: TextInputType.text,
                   validator:
-                      (value) => value!.isEmpty ? 'Enter your password' : null,
+                      (value) =>
+                  value!.length < 6
+                      ? 'Password must be at least 6 characters'
+                      : null,
                   obscureText: true,
                   decoration: InputDecoration(
                     filled: true,
@@ -92,7 +95,11 @@ class _LoginState extends State<Login> {
                   //Forgot Password Link Button
                   alignment: Alignment.centerLeft,
                   child: TextButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      Navigator.pushNamed(
+                          context,
+                          '/resetpassword');
+                    },
                     style: TextButton.styleFrom(padding: EdgeInsets.zero),
                     child: Text(
                       'Forgot password?',
@@ -130,7 +137,12 @@ class _LoginState extends State<Login> {
                 ),
                 const SizedBox(height: 20),
                 TextButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.pushNamed(
+                        context,
+                        '/register',
+                    );
+                  },
                   child: Text(
                     'New user?Sign Up',
                     style: TextStyle(
@@ -157,9 +169,16 @@ class _LoginState extends State<Login> {
       //Once login successfully
       Navigator.pushNamed(context, '/dashboard', arguments: email);
     } on FirebaseException catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Login failed: ${e.message}')));
+      ScaffoldMessenger.of(context,).showSnackBar(SnackBar(content: Text('Login failed: ${e.message}'),
+      backgroundColor: Colors.red,
+      ));
     }
+  }
+
+  @override
+  void dispose () {
+    _emailCTRL.dispose();
+    _passCTRL.dispose();
+    super.dispose();
   }
 }

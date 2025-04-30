@@ -30,7 +30,7 @@ class _DashboardState extends State<Dashboard> {
           key: _formKey,
           child: Column(
             children: [
-              Container(
+              SizedBox(
                 width: 300,
                 height: 300,
                 child: Image.asset(_appLogo, fit: BoxFit.contain),
@@ -83,7 +83,7 @@ class _DashboardState extends State<Dashboard> {
                   ),
                   ElevatedButton(
                       onPressed: (){
-                        Navigator.pushNamed(context, '/login');
+                        Navigator.pushNamed(context, '/profile');
                       },
                       child: Text('Back2')
                   )

@@ -29,8 +29,6 @@ class DefaultFirebaseOptions {
           'DefaultFirebaseOptions have not been configured for macos - '
           'you can reconfigure this by running the FlutterFire CLI again.',
         );
-      case TargetPlatform.windows:
-        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -44,37 +42,32 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBuq8pr5X-n2Vr9Zy0gyazSJajL1pqkg38',
-    appId: '1:976941164854:web:5febead2a00bde132aeb97',
-    messagingSenderId: '976941164854',
-    projectId: 'mydailymeal-2b2ad',
-    authDomain: 'mydailymeal-2b2ad.firebaseapp.com',
-    storageBucket: 'mydailymeal-2b2ad.firebasestorage.app',
+    apiKey: 'AIzaSyAKubdqj06MwoZJE7wXfwFUjBD_n-QPRzc',
+    appId: '1:596282069352:web:0ef461f9ed58266400c6dd',
+    messagingSenderId: '596282069352',
+    projectId: 'yuihatano-202405',
+    authDomain: 'yuihatano-202405.firebaseapp.com',
+    databaseURL: 'https://yuihatano-202405-default-rtdb.firebaseio.com',
+    storageBucket: 'yuihatano-202405.appspot.com',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyAIQcp0Hz-seDnYtskm7yKFcXsmlgfTM3k',
-    appId: '1:976941164854:android:89b34793dc8472472aeb97',
-    messagingSenderId: '976941164854',
-    projectId: 'mydailymeal-2b2ad',
-    storageBucket: 'mydailymeal-2b2ad.firebasestorage.app',
+    apiKey: 'AIzaSyAOJCN9Z3_fv6acZleCkGsPW3QDrvHVACw',
+    appId: '1:596282069352:android:e1bd0bbbceadbba600c6dd',
+    messagingSenderId: '596282069352',
+    projectId: 'yuihatano-202405',
+    databaseURL: 'https://yuihatano-202405-default-rtdb.firebaseio.com',
+    storageBucket: 'yuihatano-202405.appspot.com',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyBrRdk9bMbWKaw98LLQyXabnKcVaZq54BU',
-    appId: '1:976941164854:ios:d462f6f83bdcc0ba2aeb97',
-    messagingSenderId: '976941164854',
-    projectId: 'mydailymeal-2b2ad',
-    storageBucket: 'mydailymeal-2b2ad.firebasestorage.app',
+    apiKey: 'AIzaSyCCGnc7ebNHqK5FZD9et7tSC-XMmuAQiuA',
+    appId: '1:596282069352:ios:5275d438a7eeb5c400c6dd',
+    messagingSenderId: '596282069352',
+    projectId: 'yuihatano-202405',
+    databaseURL: 'https://yuihatano-202405-default-rtdb.firebaseio.com',
+    storageBucket: 'yuihatano-202405.appspot.com',
     iosBundleId: 'com.example.mydailymeal',
   );
 
-  static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyBuq8pr5X-n2Vr9Zy0gyazSJajL1pqkg38',
-    appId: '1:976941164854:web:6400011a3b8f09c12aeb97',
-    messagingSenderId: '976941164854',
-    projectId: 'mydailymeal-2b2ad',
-    authDomain: 'mydailymeal-2b2ad.firebaseapp.com',
-    storageBucket: 'mydailymeal-2b2ad.firebasestorage.app',
-  );
 }

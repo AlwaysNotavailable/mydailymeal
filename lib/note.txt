@@ -1,0 +1,53 @@
+Firebase Setup:
+
+Step 1:
+Download Node.js
+
+Step 2:
+Install the Firebase CLI via npm by running the following command (Run in FirebaseCLI and Project's Terminal):
+npm install -g firebase-tools
+
+Step 3:
+Log into Firebase using your Google account by running the following command (Run in FirebaseCLI and Project's Terminal):
+firebase login
+
+Step 4:
+Initialize the Firebase project by running the following command (Run in FirebaseCLI and Project's Terminal):
+firebase init
+
+Step 5:
+Install the plugin by running the following command from the project root:
+flutter pub add firebase_core
+
+Step 6:
+# Install the CLI if not already done so
+dart pub global activate flutterfire_cli
+
+# Run the `configure` command, select a Firebase project and platforms
+flutterfire configure
+
+
+To Solve CORS when complied in Web:
+
+1. Login to Google Cloud Console / Install Google Cloud CLI
+    - Open your web browser and go to Google Cloud Console.
+    - Log in with your Google account.
+
+2. Select Your Firebase Project
+    - In the top-left menu, select the Firebase project associated with your storage bucket.
+
+3. Activate Google Cloud Shell
+    - Click on the “Activate Google Cloud Shell” icon located in the upper right corner of the console.
+    - A shell terminal will appear at the bottom of your window, with gcloud and gsutil already available.
+
+4. Create a CORS Configuration File
+    - In the Cloud Shell terminal, execute the following command to create a JSON file named cors-config.json:
+    - echo '[{"origin": ["*"], "method": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],"maxAgeSeconds": 3600,"responseHeader": ["Content-Type", "Authorization"]}]' > cors-config.json
+
+5. Apply the CORS Configuration to Your Storage Bucket
+    - Replace YOUR_BUCKET_NAME with your actual bucket name. You can find your bucket name in the Firebase Console under Storage.
+    - Copy the bucket name in the format gs://your-bucket-name.
+    - Execute the following command in the Cloud Shell terminal to apply the CORS configuration: gsutil cors set cors-config.json gs://YOUR_BUCKET_NAME
+
+6. Verify the CORS Configuration
+    - To check if the CORS settings were applied correctly, run the following command: gsutil cors get gs://YOUR_BUCKET_NAME

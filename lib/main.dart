@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:mydailymeal/dashboard.dart';
+import 'package:mydailymeal/register.dart';
 import 'firebase_options.dart';
 import 'login.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'resetpassword.dart';
+import 'profile.dart';
+import 'edit_profile.dart';
 
 Future<void> main() async {
 
@@ -29,7 +33,11 @@ class MyApp extends StatelessWidget {
       initialRoute: '/login',
       routes: {
         '/login' : (context) => const Login(),
-        '/dashboard' : (context) => const Dashboard()
+        '/dashboard' : (context) => const Dashboard(),
+        '/register' : (context) => const Register(),
+        '/resetpassword': (context) => const Resetpassword(),
+        '/profile': (context) => Profile(),
+        '/edit_profile': (context) => EditProfilePage()
       }
     );
   }
