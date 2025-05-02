@@ -37,7 +37,6 @@ class _ProfileState extends State<Profile> {
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.black, width: 2.0),
                     shape: BoxShape.rectangle,
-                    image: DecorationImage(image: AssetImage(defaultImage)),
                   ),
                   child: Image.network(
                     imageUrl.isEmpty ? defaultImage : imageUrl,
@@ -48,23 +47,23 @@ class _ProfileState extends State<Profile> {
             ),
             SizedBox(height: 20),
             Column(
-                children: [
-                  Text(
-                    userData!['username'] ?? '',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  Text('@' + (userData!['username'] ?? ''))
-                ]
+              children: [
+                Text(
+                  userData!['username'] ?? '',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                Text('@' + (userData!['username'] ?? '')),
+              ],
             ),
             SizedBox(height: 50),
             Column(
               children: [
-              infoTile(Icons.email, userData!['email'] ?? ''),
-              SizedBox(height: 35),
-              infoTile(Icons.male, userData!['gender'] ?? ''),
-              SizedBox(height: 35),
-              infoTile(Icons.cake, userData!['age'].toString()),
-              SizedBox(height: 35),
+                infoTile(Icons.email, userData!['email'] ?? ''),
+                SizedBox(height: 35),
+                infoTile(Icons.male, userData!['gender'] ?? ''),
+                SizedBox(height: 35),
+                infoTile(Icons.cake, userData!['age'].toString()),
+                SizedBox(height: 35),
               ],
             ),
             SizedBox(height: 20),
@@ -168,7 +167,7 @@ class _ProfileState extends State<Profile> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
       final doc =
-      await FirebaseFirestore.instance.collection('users').doc(uid).get();
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
       setState(() {
         userData = doc.data();
       });
