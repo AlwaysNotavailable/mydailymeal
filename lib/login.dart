@@ -167,7 +167,7 @@ class _LoginState extends State<Login> {
       );
 
       //Once login successfully
-      Navigator.pushNamed(context, '/dashboard', arguments: email);
+      Navigator.pushNamed(context, '/home', arguments: email);
     } on FirebaseException catch (e) {
       ScaffoldMessenger.of(context,).showSnackBar(SnackBar(content: Text('Login failed: ${e.message}'),
       backgroundColor: Colors.red,

@@ -7,6 +7,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'resetpassword.dart';
 import 'profile.dart';
 import 'edit_profile.dart';
+import 'home.dart';
 
 Future<void> main() async {
 
@@ -37,7 +38,8 @@ class MyApp extends StatelessWidget {
         '/register' : (context) => const Register(),
         '/resetpassword': (context) => const Resetpassword(),
         '/profile': (context) => Profile(),
-        '/edit_profile': (context) => EditProfilePage()
+        '/edit_profile': (context) => EditProfilePage(),
+        '/home': (context) => Home()
       }
     );
   }
