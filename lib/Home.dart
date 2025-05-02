@@ -29,7 +29,7 @@ class _HomeState extends State<Home> {
       // Progress tapped, navigate to IdealWeight page
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => const IdealWeight()),
+        MaterialPageRoute(builder: (context) => IdealWeight()),
       );
     } else {
       // Update index for other tabs

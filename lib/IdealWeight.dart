@@ -1,87 +1,87 @@
 import 'package:flutter/material.dart';
+import 'progress.dart'; // Make sure this is imported
 
 class IdealWeight extends StatefulWidget {
-  const IdealWeight({super.key});
-
   @override
-  State<IdealWeight> createState() => _IdealWeightState();
+  _IdealWeightState createState() => _IdealWeightState();
 }
 
 class _IdealWeightState extends State<IdealWeight> {
-  final TextEditingController _currentWeightController = TextEditingController(text: '110lb');
-  final TextEditingController _goalWeightController = TextEditingController(text: '100lb');
+  final TextEditingController _currentWeightController = TextEditingController();
+  final TextEditingController _goalWeightController = TextEditingController();
+
+  void _saveWeights() {
+    final String current = _currentWeightController.text;
+    final String goal = _goalWeightController.text;
+
+
+
+    if (current.isNotEmpty && goal.isNotEmpty) {
+      final double currentDouble = double.tryParse(current) ?? 0.0;
+      final double goalDouble = double.tryParse(goal) ?? 0.0;
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ProgressPage(
+            currentWeight: currentDouble,
+            goalWeight: goalDouble,
+          ),
+        ),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _currentWeightController.dispose();
+    _goalWeightController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Ideal Weight'),
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
+        title: Text('Ideal Weight'),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              "What's your goal?",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'You can set a weight goal to help you track your progress.',
-              style: TextStyle(color: Colors.black54),
-            ),
-            const SizedBox(height: 32),
-            const Text('Current'),
-            const SizedBox(height: 8),
-            _buildWeightField(_currentWeightController),
-            const SizedBox(height: 24),
-            const Text('Goal'),
-            const SizedBox(height: 8),
-            _buildWeightField(_goalWeightController),
-            const SizedBox(height: 32),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                onPressed: () {
-                  // Handle save action here
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Weight goal saved!')),
-                  );
-                },
-                child: const Text(
-                  'Save',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                ),
+            Text("What's your goal?", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            SizedBox(height: 8),
+            Text("You can set a weight goal to help you track your progress."),
+            SizedBox(height: 16),
+            TextField(
+              controller: _currentWeightController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'Current',
+                suffixText: 'lb',
+                border: OutlineInputBorder(),
               ),
-            )
+            ),
+            SizedBox(height: 16),
+            TextField(
+              controller: _goalWeightController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'Goal',
+                suffixText: 'lb',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: _saveWeights,
+              child: Text('Save'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                minimumSize: Size(double.infinity, 48),
+              ),
+            ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildWeightField(TextEditingController controller) {
-    return TextField(
-      controller: controller,
-      readOnly: true,
-      decoration: InputDecoration(
-        filled: true,
-        fillColor: Colors.grey[200],
-        suffixIcon: const Icon(Icons.arrow_drop_down),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide.none,
         ),
       ),
     );
