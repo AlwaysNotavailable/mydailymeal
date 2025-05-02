@@ -14,6 +14,8 @@ class EditProfilePage extends StatefulWidget {
 class _EditProfilePageState extends State<EditProfilePage> {
   final TextEditingController _usernameCTRL = TextEditingController();
   final TextEditingController _ageCTRL = TextEditingController();
+  final TextEditingController _heightCTRL = TextEditingController();
+  final TextEditingController _weightCTRL = TextEditingController();
   String? _imageUrl;
   XFile? _pickedFile;
   DateTime? _birthDate;
@@ -135,7 +137,35 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 border: OutlineInputBorder(borderSide: BorderSide.none),
               ),
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
+            TextFormField(
+              controller: _heightCTRL,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Colors.black12,
+                border: OutlineInputBorder(borderSide: BorderSide.none),
+                contentPadding: EdgeInsets.symmetric(
+                  vertical: 10.0,
+                  horizontal: 20.0,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            TextFormField(
+              controller: _weightCTRL,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Colors.black12,
+                border: OutlineInputBorder(borderSide: BorderSide.none),
+                contentPadding: EdgeInsets.symmetric(
+                  vertical: 10.0,
+                  horizontal: 20.0,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
               height: 43,
@@ -174,6 +204,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
         _birthDate = (data['birthDate'] as Timestamp).toDate();
         _ageCTRL.text = _calculateAge(_birthDate!).toString();
       }
+      _heightCTRL.text = data['height'].toString()  ;
+      _weightCTRL.text = data['weight'].toString()  ;
       _imageUrl = data['image'] ?? '';
     });
   }
@@ -222,6 +254,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
       'age': age,
       'birthDate': _birthDate,
       'image': imageUrl,
+      'height': _heightCTRL.text,
+      'weight': _weightCTRL.text,
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
