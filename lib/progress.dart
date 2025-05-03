@@ -1,12 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 class ProgressPage extends StatefulWidget {
-  final double currentWeight;
-  final double goalWeight;
-
-  const ProgressPage({super.key, required this.currentWeight, required this.goalWeight});
+  const ProgressPage({super.key});
 
   @override
   State<ProgressPage> createState() => _ProgressPageState();
@@ -14,50 +13,84 @@ class ProgressPage extends StatefulWidget {
 
 class _ProgressPageState extends State<ProgressPage> {
   Map<String, dynamic>? userData;
+  double startWeight = 0;
+  double currentWeight = 0;
+  double height = 0;
+  double goalWeight = 0;
   int daysPast = 0;
+  List<FlSpot> weightTrend = [];
 
   @override
   void initState() {
     super.initState();
     fetchUserData();
-    calculateDaysPast();
   }
 
   Future<void> fetchUserData() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid != null) {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-      setState(() {
-        userData = doc.data();
-      });
-    }
-  }
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
 
-  Future<void> calculateDaysPast() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (!userDoc.exists) return;
 
-    List<DateTime> allDates = [];
-
-    for (final meal in ['breakfast', 'lunch', 'dinner']) {
-      final snapshot = await FirebaseFirestore.instance
-          .collection(meal)
-          .where('uid', isEqualTo: uid)
+      final progressSnapshot = await FirebaseFirestore.instance
+          .collection('progress')
+          .where('user', isEqualTo: uid)
+          .orderBy('date')
           .get();
 
-      for (var doc in snapshot.docs) {
-        Timestamp ts = doc['date'];
-        allDates.add(ts.toDate());
+      if (progressSnapshot.docs.isEmpty) {
+        setState(() {
+          userData = userDoc.data();
+        });
+        return;
       }
-    }
 
-    if (allDates.isNotEmpty) {
-      allDates.sort();
+      final today = DateTime.now();
+      final todayOnly = DateTime(today.year, today.month, today.day);
+
+      QueryDocumentSnapshot<Map<String, dynamic>>? todayDoc;
+
+      for (var doc in progressSnapshot.docs) {
+        final ts = doc['date'] as Timestamp;
+        final docDate = ts.toDate();
+        final docDateOnly = DateTime(docDate.year, docDate.month, docDate.day);
+        if (docDateOnly == todayOnly) {
+          todayDoc = doc;
+          break;
+        }
+      }
+
+      todayDoc ??= progressSnapshot.docs.last;
+
+      final earliest = progressSnapshot.docs.first;
+      final latest = progressSnapshot.docs.last;
+
+      final earliestDate = (earliest['date'] as Timestamp).toDate();
+      final latestDate = (latest['date'] as Timestamp).toDate();
+
+      final List<FlSpot> trendPoints = [];
+      for (int i = 0; i < progressSnapshot.docs.length; i++) {
+        final doc = progressSnapshot.docs[i];
+        final weight = (doc['weight'] as num).toDouble();
+        trendPoints.add(FlSpot(i.toDouble(), weight));
+      }
+
       setState(() {
-        daysPast = allDates.last.difference(allDates.first).inDays;
+        userData = userDoc.data();
+        startWeight = (earliest['weight'] as num).toDouble();
+        currentWeight = (todayDoc!['weight'] as num).toDouble();
+        height = (todayDoc!['height'] as num).toDouble();
+        goalWeight = (todayDoc!['goalWeight'] as num).toDouble();
+        daysPast = latestDate.difference(earliestDate).inDays;
+        weightTrend = trendPoints;
       });
+    } catch (e) {
+      print("Error fetching progress: $e");
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -65,12 +98,8 @@ class _ProgressPageState extends State<ProgressPage> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final double startWeight = (userData!['weight'] ?? 0).toDouble();
-    final double heightInMeters = (userData!['height'] ?? 0) / 100;
-    final double currentWeight = widget.currentWeight;
-    final double goalWeight = widget.goalWeight;
-
-    final double bmi = currentWeight / (heightInMeters * heightInMeters);
+    final double heightMeters = height / 100;
+    final double bmi = currentWeight / (heightMeters * heightMeters);
     final double weightDiff = currentWeight - goalWeight;
     final double caloriesPerPound = 3500;
     final double calorieChange = weightDiff * caloriesPerPound;
@@ -87,61 +116,58 @@ class _ProgressPageState extends State<ProgressPage> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Progress"),
-      ),
+      appBar: AppBar(title: const Text("Progress")),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
+        child: ListView(
           children: [
-            // Weight Trend
-            Card(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-              elevation: 4,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text("Weight", style: TextStyle(fontWeight: FontWeight.bold)),
-                    Text(
-                      "${(currentWeight - startWeight).toStringAsFixed(1)} lbs",
-                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      "Past $daysPast days ${weightDiff >= 0 ? "-${weightDiff.toStringAsFixed(1)} lbs" : "+${(-weightDiff).toStringAsFixed(1)} lbs"}",
-                      style: TextStyle(color: weightDiff <= 0 ? Colors.green : Colors.red),
+            const Text("Weight Trend", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            SizedBox(
+              height: 200,
+              child: LineChart(
+                LineChartData(
+                  titlesData: FlTitlesData(show: false),
+                  borderData: FlBorderData(show: false),
+                  lineBarsData: [
+                    LineChartBarData(
+                      spots: weightTrend,
+                      isCurved: true,
+                      color: Colors.blue,
+                      dotData: FlDotData(show: false),
                     ),
                   ],
                 ),
               ),
             ),
+            Text("Past $daysPast days", textAlign: TextAlign.center),
             const SizedBox(height: 20),
 
-            // Stats Grid
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _buildStatCard("Starting Weight", "${startWeight.toStringAsFixed(1)}lbs"),
-                _buildStatCard("Current Weight", "${currentWeight.toStringAsFixed(1)}lbs"),
+                _buildStatCard("Starting Weight", "${startWeight.toStringAsFixed(1)} lbs"),
+                _buildStatCard("Current Weight", "${currentWeight.toStringAsFixed(1)} lbs"),
               ],
             ),
             const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _buildStatCard("Goal Weight", "${goalWeight.toStringAsFixed(1)}lbs"),
+                _buildStatCard("Goal Weight", "${goalWeight.toStringAsFixed(1)} lbs"),
                 _buildStatCard("BMI", "${bmi.toStringAsFixed(1)}\n$bmiCategory"),
               ],
             ),
             const SizedBox(height: 20),
 
-            // Calories
             Text(
               calorieChange < 0 ? "Calories to Burn" : "Calories to Reach Goal",
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
             ),
-            Text("${calorieChange.abs().toStringAsFixed(0)} calories"),
+            Text(
+              "${calorieChange.abs().toStringAsFixed(0)} calories",
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
