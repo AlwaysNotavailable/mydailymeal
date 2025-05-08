@@ -208,84 +208,6 @@ class _MealPageState extends State<MealPage> {
     });
   }
 
-  Future<void> _pickImage() async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
-      setState(() {
-        _imageFile = File(image.path);
-      });
-    }
-  }
-
-  Future<String?> _uploadImage() async {
-    if (_imageFile == null) return null;
-    
-    final storageRef = FirebaseStorage.instance
-        .ref()
-        .child('custom_meals')
-        .child('${DateTime.now().millisecondsSinceEpoch}.jpg');
-    
-    await storageRef.putFile(_imageFile!);
-    return await storageRef.getDownloadURL();
-  }
-
-  Future<void> _addCustomMeal() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isLoading = true);
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-
-      String? imageUrl;
-      if (_imageFile != null) {
-        imageUrl = await _uploadImage();
-      }
-
-      final customMeal = {
-        'title': _titleController.text,
-        'calories': int.parse(_caloriesController.text),
-        'carbs': double.parse(_carbsController.text),
-        'protein': double.parse(_proteinController.text),
-        'imageUrl': imageUrl,
-        'userId': user.uid,
-        'isCustom': true,
-      };
-
-      await FirebaseFirestore.instance
-          .collection('custom_meals')
-          .add(customMeal);
-
-      setState(() {
-        _databaseMeals.add(customMeal);
-        _filteredDatabaseMeals = _databaseMeals;
-      });
-
-      _titleController.clear();
-      _caloriesController.clear();
-      _carbsController.clear();
-      _proteinController.clear();
-      _imageFile = null;
-      
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Custom meal added successfully!')),
-        );
-      }
-    } catch (e) {
-      print('Error adding custom meal: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error adding custom meal')),
-        );
-      }
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
-
   void _showAddCustomMealDialog() {
     final TextEditingController nameController = TextEditingController();
     
@@ -402,7 +324,7 @@ class _MealPageState extends State<MealPage> {
 
   Widget _buildMealCard(Map<String, dynamic> meal) {
     // Use custom data if available, otherwise use original data
-    final displayData = meal['isCustom'] == true ? meal : meal;
+    final displayData = meal;
     
     return Card(
       margin: const EdgeInsets.symmetric(
