@@ -7,7 +7,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'resetpassword.dart';
 import 'profile.dart';
 import 'edit_profile.dart';
-import 'home.dart';
+import 'Home.dart';
 
 Future<void> main() async {
 
