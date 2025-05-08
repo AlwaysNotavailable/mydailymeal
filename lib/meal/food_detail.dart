@@ -29,6 +29,7 @@ class _FoodDetailState extends State<FoodDetail> {
   Map<String, dynamic>? _userReview;
   bool _isAnonymous = false;
   bool _isEditing = false;
+  final _firestore = FirebaseFirestore.instance;
 
   @override
   void initState() {
@@ -100,10 +101,31 @@ class _FoodDetailState extends State<FoodDetail> {
 
     setState(() => _isLoading = true);
     try {
+      String mealId = widget.meal['id'];
+      
+      if (!mealId.startsWith('M')) {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user == null) throw Exception('User not authenticated');
+
+        final mealRef = _firestore.collection('Meal').doc();
+        await mealRef.set({
+          'title': widget.meal['strMeal'],
+          'calories': widget.meal['calories'] ?? 0,
+          'protein': widget.meal['protein'] ?? 0,
+          'carbs': widget.meal['carbs'] ?? 0,
+          'fat': widget.meal['fat'] ?? 0,
+          'imageUrl': widget.meal['strMealThumb'],
+          'userId': user.uid,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        
+        mealId = mealRef.id;
+      }
+
       if (_userReview != null) {
         // Update existing review
         final success = await ReviewService.updateReview(
-          widget.meal['id'],
+          mealId,
           _userReview!['id'],
           rating: _selectedRating,
           comment: _commentController.text,
@@ -133,7 +155,7 @@ class _FoodDetailState extends State<FoodDetail> {
       } else {
         // Add new review
         final reviewId = await ReviewService.addReview(
-          widget.meal['id'],
+          mealId,
           rating: _selectedRating,
           comment: _commentController.text,
           isAnonymous: _isAnonymous,
@@ -592,12 +614,50 @@ class _FoodDetailState extends State<FoodDetail> {
   Future<void> _addToMeal(String collection) async {
     setState(() => _isLoading = true);
     try {
-      final result = await MealHistoryService.addToHistory(
-        widget.meal['id'],
-        collection,
-      );
+      final mealId = widget.meal['id'];
+      print('Adding meal with ID: $mealId');
+      
+      String finalMealId;
+      
+      if (mealId == null || !mealId.toString().startsWith('M')) {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user == null) throw Exception('User not authenticated');
 
-      if (result != null) {
+        // Get the latest meal ID
+        final mealsSnapshot = await _firestore
+            .collection('Meals')
+            .orderBy('id', descending: true)
+            .limit(1)
+            .get();
+
+        String newId = 'M001';
+        if (mealsSnapshot.docs.isNotEmpty) {
+          final lastId = mealsSnapshot.docs.first.data()['id'] as String;
+          final number = int.parse(lastId.substring(1)) + 1;
+          newId = 'M${number.toString().padLeft(3, '0')}';
+        }
+
+        final mealData = {
+          'id': newId,
+          'title': widget.meal['strMeal'] ?? 'Unknown Meal',
+          'calories': widget.meal['calories'] ?? 0,
+          'carbs': widget.meal['carbs'] ?? 0,
+          'protein': widget.meal['protein'] ?? 0,
+          'imageUrl': widget.meal['strMealThumb'] ?? '',
+          'userId': user.uid,
+          'isCustom': false,
+          'type': 'api',
+        };
+
+        await _firestore.collection('Meals').doc(newId).set(mealData);
+        finalMealId = newId;
+      } else {
+        finalMealId = mealId.toString();
+      }
+
+      final historyId = await MealHistoryService.addToHistory(finalMealId, collection);
+      
+      if (historyId != null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -607,21 +667,14 @@ class _FoodDetailState extends State<FoodDetail> {
           );
         }
       } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to add to $collection'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+        throw Exception('Failed to add to history');
       }
     } catch (e) {
-      print('Error adding to $collection: $e');
+      print('Error adding to meal: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error adding to $collection'),
+            content: Text('Error adding to $collection: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );

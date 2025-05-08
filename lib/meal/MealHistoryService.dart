@@ -41,9 +41,19 @@ class MealHistoryService {
       final user = _auth.currentUser;
       if (user == null) return null;
 
-      // Get meal data with custom data if available
-      final mealData = await MealService.getMeal(mealId);
-      if (mealData == null) return null;
+      Map<String, dynamic> mealData;
+      
+      if (mealId.startsWith('M')) {
+        mealData = await MealService.getMeal(mealId) ?? {};
+      } else {
+        final mealDoc = await _firestore.collection('Meal').doc(mealId).get();
+        if (!mealDoc.exists) {
+          throw Exception('Meal not found');
+        }
+        mealData = mealDoc.data()!;
+      }
+
+      if (mealData.isEmpty) return null;
 
       // Generate next ID
       final nextId = await _generateNextId(collection);
