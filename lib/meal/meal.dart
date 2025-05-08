@@ -8,6 +8,7 @@ import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'food_detail.dart';
 import 'add_meal.dart';
+import 'meal_service.dart';
 
 class MealPage extends StatefulWidget {
   const MealPage({super.key});
@@ -108,40 +109,9 @@ class _MealPageState extends State<MealPage> {
   Future<void> _fetchMeals() async {
     setState(() => _isLoading = true);
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-
       // Fetch from Firebase (database meals)
-      final mealsSnapshot = await FirebaseFirestore.instance
-          .collection('Meals')
-          .orderBy('id')
-          .limit(10)
-          .get();
-
-      List<Map<String, dynamic>> dbMeals = [];
-      
-      if (mealsSnapshot.docs.isNotEmpty) {
-        for (var doc in mealsSnapshot.docs) {
-          var mealData = doc.data();
-          
-          // Fetch custom data for this meal
-          final customDataDoc = await FirebaseFirestore.instance
-              .collection('Meals')
-              .doc(doc.id)
-              .collection(user.uid)
-              .doc('data')
-              .get();
-
-          if (customDataDoc.exists) {
-            // Merge custom data with original meal data
-            mealData = {...mealData, ...customDataDoc.data()!};
-          }
-          
-          dbMeals.add(mealData);
-        }
-        
-        print('Fetched ${dbMeals.length} meals from Firebase');
-      }
+      _databaseMeals = await MealService.getAllMeals();
+      print('Fetched ${_databaseMeals.length} meals from Firebase');
 
       // Fetch from TheMealDB API (suggestions)
       List<Map<String, dynamic>> apiMeals = [];
@@ -178,9 +148,8 @@ class _MealPageState extends State<MealPage> {
       print('Fetched ${apiMeals.length} meals from API');
 
       setState(() {
-        _databaseMeals = dbMeals;
         _apiMeals = apiMeals;
-        _filteredDatabaseMeals = dbMeals;
+        _filteredDatabaseMeals = _databaseMeals;
         _filteredApiMeals = apiMeals;
       });
     } catch (e) {

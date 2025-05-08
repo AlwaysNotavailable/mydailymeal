@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'edit_meal.dart';
+import 'meal_service.dart';
+import 'MealHistoryService.dart';
 
 class FoodDetail extends StatefulWidget {
   final Map<String, dynamic> meal;
@@ -28,20 +30,11 @@ class _FoodDetailState extends State<FoodDetail> {
   }
 
   Future<void> _loadUserCustomData() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
     try {
-      final docSnapshot = await FirebaseFirestore.instance
-          .collection('Meals')
-          .doc(widget.meal['id'])
-          .collection(user.uid)
-          .doc('data')
-          .get();
-
-      if (docSnapshot.exists) {
+      final mealData = await MealService.getMeal(widget.meal['id']);
+      if (mealData != null) {
         setState(() {
-          _userCustomData = docSnapshot.data();
+          _userCustomData = mealData;
         });
       }
     } catch (e) {
@@ -124,6 +117,57 @@ class _FoodDetailState extends State<FoodDetail> {
                           const SizedBox(height: 8),
                           Text(displayData['strInstructions']),
                         ],
+                        const SizedBox(height: 24),
+                        const Text(
+                          'Add to Meal',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () => _addToMeal('breakfast'),
+                                icon: const Icon(Icons.wb_sunny_outlined),
+                                label: const Text('Breakfast'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.orange[100],
+                                  foregroundColor: Colors.orange[900],
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () => _addToMeal('lunch'),
+                                icon: const Icon(Icons.restaurant),
+                                label: const Text('Lunch'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green[100],
+                                  foregroundColor: Colors.green[900],
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () => _addToMeal('dinner'),
+                                icon: const Icon(Icons.nightlight_round),
+                                label: const Text('Dinner'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue[100],
+                                  foregroundColor: Colors.blue[900],
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
@@ -152,5 +196,47 @@ class _FoodDetailState extends State<FoodDetail> {
         ],
       ),
     );
+  }
+
+  Future<void> _addToMeal(String collection) async {
+    setState(() => _isLoading = true);
+    try {
+      final result = await MealHistoryService.addToHistory(
+        widget.meal['id'],
+        collection,
+      );
+
+      if (result != null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Added to $collection successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to add to $collection'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error adding to $collection: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error adding to $collection'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 } 
