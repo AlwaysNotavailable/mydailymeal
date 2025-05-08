@@ -108,6 +108,9 @@ class _MealPageState extends State<MealPage> {
   Future<void> _fetchMeals() async {
     setState(() => _isLoading = true);
     try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
       // Fetch from Firebase (database meals)
       final mealsSnapshot = await FirebaseFirestore.instance
           .collection('Meals')
@@ -118,10 +121,24 @@ class _MealPageState extends State<MealPage> {
       List<Map<String, dynamic>> dbMeals = [];
       
       if (mealsSnapshot.docs.isNotEmpty) {
-        dbMeals = mealsSnapshot.docs
-            .map((doc) => doc.data())
-            .where((meal) => meal != null)
-            .toList();
+        for (var doc in mealsSnapshot.docs) {
+          var mealData = doc.data();
+          
+          // Fetch custom data for this meal
+          final customDataDoc = await FirebaseFirestore.instance
+              .collection('Meals')
+              .doc(doc.id)
+              .collection(user.uid)
+              .doc('data')
+              .get();
+
+          if (customDataDoc.exists) {
+            // Merge custom data with original meal data
+            mealData = {...mealData, ...customDataDoc.data()!};
+          }
+          
+          dbMeals.add(mealData);
+        }
         
         print('Fetched ${dbMeals.length} meals from Firebase');
       }
@@ -384,6 +401,9 @@ class _MealPageState extends State<MealPage> {
   }
 
   Widget _buildMealCard(Map<String, dynamic> meal) {
+    // Use custom data if available, otherwise use original data
+    final displayData = meal['isCustom'] == true ? meal : meal;
+    
     return Card(
       margin: const EdgeInsets.symmetric(
         horizontal: 16,
@@ -393,7 +413,7 @@ class _MealPageState extends State<MealPage> {
         leading: ClipRRect(
           borderRadius: BorderRadius.circular(8),
           child: Image.network(
-            meal['strMealThumb'] ?? meal['imageUrl'] ?? '',
+            displayData['strMealThumb'] ?? displayData['imageUrl'] ?? '',
             width: 60,
             height: 60,
             fit: BoxFit.cover,
@@ -402,17 +422,17 @@ class _MealPageState extends State<MealPage> {
           ),
         ),
         title: Text(
-          meal['strMeal'] ?? meal['title'] ?? 'Unknown Meal',
+          displayData['strMeal'] ?? displayData['title'] ?? 'Unknown Meal',
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Calories: ${meal['calories'] ?? 'N/A'} cal',
+              'Calories: ${displayData['calories'] ?? 'N/A'} cal',
               style: const TextStyle(fontSize: 12),
             ),
             Text(
-              'Carbs: ${meal['carbs'] ?? 'N/A'}g | Protein: ${meal['protein'] ?? 'N/A'}g',
+              'Carbs: ${displayData['carbs'] ?? 'N/A'}g | Protein: ${displayData['protein'] ?? 'N/A'}g',
               style: const TextStyle(fontSize: 12),
             ),
           ],
@@ -423,7 +443,7 @@ class _MealPageState extends State<MealPage> {
             context,
             MaterialPageRoute(
               builder: (context) => FoodDetail(
-                meal: meal,
+                meal: displayData,
                 selectedFilter: 'Today',
               ),
             ),

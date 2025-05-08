@@ -32,16 +32,16 @@ class _FoodDetailState extends State<FoodDetail> {
     if (user == null) return;
 
     try {
-      final doc = await FirebaseFirestore.instance
+      final docSnapshot = await FirebaseFirestore.instance
           .collection('Meals')
           .doc(widget.meal['id'])
           .collection(user.uid)
-          .doc(widget.meal['id'])
+          .doc('data')
           .get();
 
-      if (doc.exists) {
+      if (docSnapshot.exists) {
         setState(() {
-          _userCustomData = doc.data();
+          _userCustomData = docSnapshot.data();
         });
       }
     } catch (e) {
