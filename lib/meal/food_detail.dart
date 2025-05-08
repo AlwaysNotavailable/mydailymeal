@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'edit_meal.dart';
 
-class FoodDetail extends StatelessWidget {
+class FoodDetail extends StatefulWidget {
   final Map<String, dynamic> meal;
   final String selectedFilter;
 
@@ -12,190 +13,143 @@ class FoodDetail extends StatelessWidget {
     required this.selectedFilter,
   });
 
-  Future<void> _addToMeal(BuildContext context, String mealType, Color buttonColor, IconData icon) async {
+  @override
+  State<FoodDetail> createState() => _FoodDetailState();
+}
+
+class _FoodDetailState extends State<FoodDetail> {
+  bool _isLoading = false;
+  Map<String, dynamic>? _userCustomData;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserCustomData();
+  }
+
+  Future<void> _loadUserCustomData() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    final now = DateTime.now();
-    final mealData = {
-      'name': meal['strMeal'] ?? meal['title'],
-      'calories': meal['calories'] ?? 0,
-      'imageUrl': meal['strMealThumb'] ?? meal['imageUrl'],
-      'date': Timestamp.fromDate(now),
-      'user': user.uid,
-      'mealType': mealType,
-    };
-
     try {
-      final mealsRef = FirebaseFirestore.instance.collection('Meals');
-      final lastMeal = await mealsRef
-          .orderBy('id', descending: true)
-          .limit(1)
+      final doc = await FirebaseFirestore.instance
+          .collection('Meals')
+          .doc(widget.meal['id'])
+          .collection(user.uid)
+          .doc(widget.meal['id'])
           .get();
 
-      String newId;
-      if (lastMeal.docs.isEmpty) {
-        newId = 'M001';
-      } else {
-        final lastId = lastMeal.docs.first.data()['id'] as String;
-        final number = int.parse(lastId.substring(1)) + 1;
-        newId = 'M${number.toString().padLeft(3, '0')}';
+      if (doc.exists) {
+        setState(() {
+          _userCustomData = doc.data();
+        });
       }
-
-      // Add the meal with the generated ID
-      await mealsRef.doc(newId).set({
-        'id': newId,
-        'data': mealData,
-      });
-
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Added to $mealType'),
-          backgroundColor: Colors.green,
-        ),
-      );
     } catch (e) {
-      print('Error adding meal: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error adding meal'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      print('Error loading user custom data: $e');
     }
   }
 
-  Widget _buildMealButton(BuildContext context, String mealType, Color buttonColor, IconData icon) {
-    return Expanded(
-      child: ElevatedButton.icon(
-        onPressed: () => _addToMeal(context, mealType, buttonColor, icon),
-        icon: Icon(icon),
-        label: Text(mealType),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: buttonColor,
-          padding: const EdgeInsets.symmetric(vertical: 12),
+  Future<void> _editMeal() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditMeal(
+          meal: _userCustomData ?? widget.meal,
         ),
       ),
     );
+
+    if (result == true) {
+      _loadUserCustomData();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Use user custom data if available, otherwise use original meal data
+    final displayData = _userCustomData ?? widget.meal;
+    
     return Scaffold(
       appBar: AppBar(
-        title: Text(meal['strMeal'] ?? meal['title'] ?? 'Food Detail'),
+        title: Text(displayData['title'] ?? displayData['strMeal'] ?? 'Meal Details'),
         backgroundColor: Colors.white,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: _editMeal,
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: double.infinity,
-              height: 250,
-              decoration: BoxDecoration(
-                image: DecorationImage(
-                  image: NetworkImage(
-                    meal['strMealThumb'] ?? meal['imageUrl'] ?? '',
-                  ),
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Food Name
-                  Text(
-                    meal['strMeal'] ?? meal['title'] ?? 'Unknown Food',
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
+                  if (displayData['imageUrl'] != null || displayData['strMealThumb'] != null)
+                    Image.network(
+                      displayData['imageUrl'] ?? displayData['strMealThumb'],
+                      width: double.infinity,
+                      height: 250,
+                      fit: BoxFit.cover,
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  // Calories
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.local_fire_department, color: Colors.orange),
-                          const SizedBox(width: 8),
-                          Text(
-                            '${meal['calories'] ?? 'N/A'} calories',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w500,
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          displayData['title'] ?? displayData['strMeal'] ?? 'Unknown Meal',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _buildNutritionInfo('Calories', '${displayData['calories'] ?? 'N/A'} cal'),
+                        _buildNutritionInfo('Carbs', '${displayData['carbs'] ?? 'N/A'}g'),
+                        _buildNutritionInfo('Protein', '${displayData['protein'] ?? 'N/A'}g'),
+                        if (displayData['fat'] != null)
+                          _buildNutritionInfo('Fat', '${displayData['fat']}g'),
+                        const SizedBox(height: 24),
+                        if (displayData['strInstructions'] != null) ...[
+                          const Text(
+                            'Instructions',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
+                          const SizedBox(height: 8),
+                          Text(displayData['strInstructions']),
                         ],
-                      ),
+                      ],
                     ),
-                  ),
-                  
-                  // Instructions if available
-                  if (meal['strInstructions'] != null) ...[
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Instructions',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      meal['strInstructions'],
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                  ],
-                  
-                  const SizedBox(height: 24),
-                  
-                  // Add to Meal Buttons
-                  const Text(
-                    'Add to Meal',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      _buildMealButton(
-                        context,
-                        'Breakfast',
-                        Colors.orange,
-                        Icons.wb_sunny,
-                      ),
-                      const SizedBox(width: 8),
-                      _buildMealButton(
-                        context,
-                        'Lunch',
-                        Colors.blue,
-                        Icons.restaurant,
-                      ),
-                      const SizedBox(width: 8),
-                      _buildMealButton(
-                        context,
-                        'Dinner',
-                        Colors.purple,
-                        Icons.nightlight_round,
-                      ),
-                    ],
                   ),
                 ],
               ),
             ),
-          ],
-        ),
+    );
+  }
+
+  Widget _buildNutritionInfo(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        children: [
+          Text(
+            '$label: ',
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 16),
+          ),
+        ],
       ),
     );
   }
