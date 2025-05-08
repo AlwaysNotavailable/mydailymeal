@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'food_detail.dart';
+import 'add_meal.dart';
 
 class MealPage extends StatefulWidget {
   const MealPage({super.key});
@@ -17,12 +18,16 @@ class MealPage extends StatefulWidget {
 
 class _MealPageState extends State<MealPage> {
   final TextEditingController _searchController = TextEditingController();
-  List<Map<String, dynamic>> _meals = [];
-  List<Map<String, dynamic>> _filteredMeals = [];
+  List<Map<String, dynamic>> _databaseMeals = [];
+  List<Map<String, dynamic>> _apiMeals = [];
+  List<Map<String, dynamic>> _filteredDatabaseMeals = [];
+  List<Map<String, dynamic>> _filteredApiMeals = [];
   bool _isLoading = false;
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _caloriesController = TextEditingController();
+  final _carbsController = TextEditingController();
+  final _proteinController = TextEditingController();
   File? _imageFile;
 
   @override
@@ -103,91 +108,63 @@ class _MealPageState extends State<MealPage> {
   Future<void> _fetchMeals() async {
     setState(() => _isLoading = true);
     try {
-      // First, try to fetch from Firebase
+      // Fetch from Firebase (database meals)
       final mealsSnapshot = await FirebaseFirestore.instance
           .collection('Meals')
+          .orderBy('id')
+          .limit(10)
           .get();
 
-      List<Map<String, dynamic>> meals = [];
+      List<Map<String, dynamic>> dbMeals = [];
       
       if (mealsSnapshot.docs.isNotEmpty) {
-        meals = mealsSnapshot.docs
-            .map((doc) {
-              final data = doc.data();
-              if (data != null && data['data'] != null) {
-                return data['data'] as Map<String, dynamic>;
-              }
-              return null;
-            })
+        dbMeals = mealsSnapshot.docs
+            .map((doc) => doc.data())
             .where((meal) => meal != null)
-            .cast<Map<String, dynamic>>()
             .toList();
         
-        print('Fetched ${meals.length} meals from Firebase');
+        print('Fetched ${dbMeals.length} meals from Firebase');
       }
 
-      // If we have less than 20 meals or no meals at all, fetch from TheMealDB
-      if (meals.length < 20) {
-        print('Fetching from TheMealDB API...');
-        // Fetch multiple random meals
-        for (int i = 0; i < 20; i++) {
-          try {
-            final response = await http.get(Uri.parse('https://www.themealdb.com/api/json/v1/1/random.php'));
-            if (response.statusCode == 200) {
-              final data = json.decode(response.body);
-              if (data != null && data['meals'] != null && data['meals'].isNotEmpty) {
-                final apiMeal = data['meals'][0] as Map<String, dynamic>;
-                if (apiMeal != null) {
-                  print('Fetched random meal: ${apiMeal['strMeal']}');
-                  
-                  // Get nutritional information from USDA API
-                  final nutritionInfo = await _getNutritionalInfo(apiMeal['strMeal']);
-                  apiMeal.addAll(nutritionInfo);
-                  
-                  // Add only if it doesn't already exist
-                  if (!meals.any((meal) => 
-                    (meal['strMeal'] == apiMeal['strMeal']) || 
-                    (meal['title'] == apiMeal['strMeal']))) {
-                    meals.add(apiMeal);
-                  }
+      // Fetch from TheMealDB API (suggestions)
+      List<Map<String, dynamic>> apiMeals = [];
+      for (int i = 0; i < 10; i++) {
+        try {
+          final response = await http.get(Uri.parse('https://www.themealdb.com/api/json/v1/1/random.php'));
+          if (response.statusCode == 200) {
+            final data = json.decode(response.body);
+            if (data != null && data['meals'] != null && data['meals'].isNotEmpty) {
+              final apiMeal = data['meals'][0] as Map<String, dynamic>;
+              if (apiMeal != null) {
+                print('Fetched random meal: ${apiMeal['strMeal']}');
+                
+                // Get nutritional information from USDA API
+                final nutritionInfo = await _getNutritionalInfo(apiMeal['strMeal']);
+                apiMeal.addAll(nutritionInfo);
+                
+                // Add only if it doesn't already exist
+                if (!apiMeals.any((meal) => 
+                  (meal['strMeal'] == apiMeal['strMeal']) || 
+                  (meal['title'] == apiMeal['strMeal']))) {
+                  apiMeals.add(apiMeal);
                 }
               }
             }
-          } catch (e) {
-            print('Error fetching random meal: $e');
-            continue;
           }
-          // Add a small delay to avoid hitting rate limits
-          await Future.delayed(const Duration(milliseconds: 100));
-        }
-        print('Fetched ${meals.length} meals from API');
-      }
-
-      // Fetch custom meals from Firestore
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        try {
-          final customMealsSnapshot = await FirebaseFirestore.instance
-              .collection('custom_meals')
-              .where('userId', isEqualTo: user.uid)
-              .get();
-
-          final customMeals = customMealsSnapshot.docs
-              .map((doc) => doc.data())
-              .where((meal) => meal != null)
-              .toList();
-
-          print('Fetched ${customMeals.length} custom meals');
-          meals.addAll(customMeals);
         } catch (e) {
-          print('Error fetching custom meals: $e');
+          print('Error fetching random meal: $e');
+          continue;
         }
+        // Add a small delay to avoid hitting rate limits
+        await Future.delayed(const Duration(milliseconds: 100));
       }
+      print('Fetched ${apiMeals.length} meals from API');
 
-      print('Total meals: ${meals.length}');
       setState(() {
-        _meals = meals;
-        _filteredMeals = meals;
+        _databaseMeals = dbMeals;
+        _apiMeals = apiMeals;
+        _filteredDatabaseMeals = dbMeals;
+        _filteredApiMeals = apiMeals;
       });
     } catch (e) {
       print('Error fetching meals: $e');
@@ -198,7 +175,14 @@ class _MealPageState extends State<MealPage> {
 
   void _filterMeals(String query) {
     setState(() {
-      _filteredMeals = _meals
+      _filteredDatabaseMeals = _databaseMeals
+          .where((meal) =>
+              meal['strMeal']?.toString().toLowerCase().contains(query.toLowerCase()) ??
+              meal['title']?.toString().toLowerCase().contains(query.toLowerCase()) ??
+              false)
+          .toList();
+      
+      _filteredApiMeals = _apiMeals
           .where((meal) =>
               meal['strMeal']?.toString().toLowerCase().contains(query.toLowerCase()) ??
               meal['title']?.toString().toLowerCase().contains(query.toLowerCase()) ??
@@ -245,6 +229,8 @@ class _MealPageState extends State<MealPage> {
       final customMeal = {
         'title': _titleController.text,
         'calories': int.parse(_caloriesController.text),
+        'carbs': double.parse(_carbsController.text),
+        'protein': double.parse(_proteinController.text),
         'imageUrl': imageUrl,
         'userId': user.uid,
         'isCustom': true,
@@ -255,12 +241,14 @@ class _MealPageState extends State<MealPage> {
           .add(customMeal);
 
       setState(() {
-        _meals.add(customMeal);
-        _filteredMeals = _meals;
+        _databaseMeals.add(customMeal);
+        _filteredDatabaseMeals = _databaseMeals;
       });
 
       _titleController.clear();
       _caloriesController.clear();
+      _carbsController.clear();
+      _proteinController.clear();
       _imageFile = null;
       
       if (mounted) {
@@ -282,48 +270,19 @@ class _MealPageState extends State<MealPage> {
   }
 
   void _showAddCustomMealDialog() {
+    final TextEditingController nameController = TextEditingController();
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Add Custom Meal'),
-        content: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: _titleController,
-                  decoration: const InputDecoration(labelText: 'Meal Title'),
-                  validator: (value) =>
-                      value?.isEmpty ?? true ? 'Please enter a title' : null,
-                ),
-                TextFormField(
-                  controller: _caloriesController,
-                  decoration: const InputDecoration(labelText: 'Calories'),
-                  keyboardType: TextInputType.number,
-                  validator: (value) =>
-                      value?.isEmpty ?? true ? 'Please enter calories' : null,
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: _pickImage,
-                  icon: const Icon(Icons.image),
-                  label: const Text('Pick Image'),
-                ),
-                if (_imageFile != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8.0),
-                    child: Image.file(
-                      _imageFile!,
-                      height: 100,
-                      width: 100,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-              ],
-            ),
+        title: const Text('Add New Meal'),
+        content: TextField(
+          controller: nameController,
+          decoration: const InputDecoration(
+            labelText: 'Meal Name',
+            hintText: 'Enter the name of the meal',
           ),
+          autofocus: true,
         ),
         actions: [
           TextButton(
@@ -331,8 +290,24 @@ class _MealPageState extends State<MealPage> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: _addCustomMeal,
-            child: const Text('Add'),
+            onPressed: () {
+              if (nameController.text.isNotEmpty) {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AddMeal(
+                      mealName: nameController.text,
+                    ),
+                  ),
+                ).then((success) {
+                  if (success == true) {
+                    _fetchMeals(); // Refresh the meal list
+                  }
+                });
+              }
+            },
+            child: const Text('Next'),
           ),
         ],
       ),
@@ -366,47 +341,35 @@ class _MealPageState extends State<MealPage> {
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : ListView.builder(
-                    itemCount: _filteredMeals.length,
-                    itemBuilder: (context, index) {
-                      final meal = _filteredMeals[index];
-                      return Card(
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        child: ListTile(
-                          leading: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.network(
-                              meal['strMealThumb'] ?? meal['imageUrl'] ?? '',
-                              width: 60,
-                              height: 60,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  const Icon(Icons.fastfood, size: 60),
+                : ListView(
+                    children: [
+                      if (_filteredDatabaseMeals.isNotEmpty) ...[
+                        const Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: Text(
+                            'Your Meals',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                          title: Text(
-                            meal['strMeal'] ?? meal['title'] ?? 'Unknown Meal',
-                          ),
-                          subtitle: Text(
-                            '${meal['calories'] ?? 'N/A'} calories',
-                          ),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => FoodDetail(
-                                  meal: meal,
-                                  selectedFilter: 'Today',
-                                ),
-                              ),
-                            );
-                          },
                         ),
-                      );
-                    },
+                        ..._filteredDatabaseMeals.map((meal) => _buildMealCard(meal)),
+                      ],
+                      if (_filteredApiMeals.isNotEmpty) ...[
+                        const Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: Text(
+                            'Suggested Meals',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        ..._filteredApiMeals.map((meal) => _buildMealCard(meal)),
+                      ],
+                    ],
                   ),
           ),
         ],
@@ -420,11 +383,63 @@ class _MealPageState extends State<MealPage> {
     );
   }
 
+  Widget _buildMealCard(Map<String, dynamic> meal) {
+    return Card(
+      margin: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 8,
+      ),
+      child: ListTile(
+        leading: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.network(
+            meal['strMealThumb'] ?? meal['imageUrl'] ?? '',
+            width: 60,
+            height: 60,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) =>
+                const Icon(Icons.fastfood, size: 60),
+          ),
+        ),
+        title: Text(
+          meal['strMeal'] ?? meal['title'] ?? 'Unknown Meal',
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Calories: ${meal['calories'] ?? 'N/A'} cal',
+              style: const TextStyle(fontSize: 12),
+            ),
+            Text(
+              'Carbs: ${meal['carbs'] ?? 'N/A'}g | Protein: ${meal['protein'] ?? 'N/A'}g',
+              style: const TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
+        isThreeLine: true,
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => FoodDetail(
+                meal: meal,
+                selectedFilter: 'Today',
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
     _titleController.dispose();
     _caloriesController.dispose();
+    _carbsController.dispose();
+    _proteinController.dispose();
     super.dispose();
   }
 } 
