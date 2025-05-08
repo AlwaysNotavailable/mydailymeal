@@ -5,28 +5,65 @@ class ReviewService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  static Future<String?> addReview(String mealId, {
+  static Future<String?> addReview(
+    String mealId, {
     required int rating,
     required String comment,
-    required bool isAnonymous,
+    bool isAnonymous = false,
   }) async {
     try {
       final user = _auth.currentUser;
       if (user == null) return null;
 
-      final reviewRef = _firestore.collection('Meal').doc(mealId).collection('Review').doc();
+      String finalMealId = mealId;
+      
+      // If mealId is null or not starting with M, save it to Meals collection first
+      if (mealId == null || !mealId.toString().startsWith('M')) {
+        // Get the latest meal ID
+        final mealsSnapshot = await _firestore
+            .collection('Meals')
+            .orderBy('id', descending: true)
+            .limit(1)
+            .get();
+
+        String newId = 'M001';
+        if (mealsSnapshot.docs.isNotEmpty) {
+          final lastId = mealsSnapshot.docs.first.data()['id'] as String;
+          final number = int.parse(lastId.substring(1)) + 1;
+          newId = 'M${number.toString().padLeft(3, '0')}';
+        }
+
+        // Save the meal to Meals collection
+        await _firestore.collection('Meals').doc(newId).set({
+          'id': newId,
+          'title': mealId?.toString() ?? 'Unknown Meal',
+          'calories': 0,
+          'protein': 0,
+          'carbs': 0,
+          'imageUrl': '',
+          'userId': user.uid,
+          'isCustom': false,
+          'type': 'api',
+          'originalId': mealId?.toString() ?? '',
+        });
+
+        finalMealId = newId;
+      }
+
+      final reviewRef = _firestore.collection('Meals').doc(finalMealId).collection('Review').doc();
       final userName = isAnonymous ? 'Anonymous User' : _formatUserName(user.displayName ?? user.email ?? 'Unknown User');
 
-      await reviewRef.set({
+      final reviewData = {
         'id': reviewRef.id,
         'userId': user.uid,
         'userName': userName,
         'rating': rating,
         'comment': comment,
-        'date': FieldValue.serverTimestamp(),
         'isAnonymous': isAnonymous,
-      });
+        'date': FieldValue.serverTimestamp(),
+      };
 
+      await reviewRef.set(reviewData);
       return reviewRef.id;
     } catch (e) {
       print('Error adding review: $e');
@@ -37,7 +74,7 @@ class ReviewService {
   static Future<List<Map<String, dynamic>>> getReviews(String mealId) async {
     try {
       final reviewsSnapshot = await _firestore
-          .collection('Meal')
+          .collection('Meals')
           .doc(mealId)
           .collection('Review')
           .orderBy('date', descending: true)
@@ -56,7 +93,7 @@ class ReviewService {
       if (user == null) return null;
 
       final reviewSnapshot = await _firestore
-          .collection('Meal')
+          .collection('Meals')
           .doc(mealId)
           .collection('Review')
           .where('userId', isEqualTo: user.uid)
@@ -70,16 +107,18 @@ class ReviewService {
     }
   }
 
-  static Future<bool> updateReview(String mealId, String reviewId, {
+  static Future<bool> updateReview(
+    String mealId,
+    String reviewId, {
     required int rating,
     required String comment,
-    required bool isAnonymous,
+    bool isAnonymous = false,
   }) async {
     try {
       final user = _auth.currentUser;
       if (user == null) return false;
 
-      final reviewRef = _firestore.collection('Meal').doc(mealId).collection('Review').doc(reviewId);
+      final reviewRef = _firestore.collection('Meals').doc(mealId).collection('Review').doc(reviewId);
       final reviewDoc = await reviewRef.get();
 
       if (!reviewDoc.exists || reviewDoc.data()?['userId'] != user.uid) {
@@ -91,9 +130,9 @@ class ReviewService {
       await reviewRef.update({
         'rating': rating,
         'comment': comment,
-        'date': FieldValue.serverTimestamp(),
-        'userName': userName,
         'isAnonymous': isAnonymous,
+        'userName': userName,
+        'date': FieldValue.serverTimestamp(),
       });
 
       return true;
@@ -108,7 +147,7 @@ class ReviewService {
       final user = _auth.currentUser;
       if (user == null) return false;
 
-      final reviewRef = _firestore.collection('Meal').doc(mealId).collection('Review').doc(reviewId);
+      final reviewRef = _firestore.collection('Meals').doc(mealId).collection('Review').doc(reviewId);
       final reviewDoc = await reviewRef.get();
 
       if (!reviewDoc.exists || reviewDoc.data()?['userId'] != user.uid) {

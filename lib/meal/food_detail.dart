@@ -30,6 +30,7 @@ class _FoodDetailState extends State<FoodDetail> {
   bool _isAnonymous = false;
   bool _isEditing = false;
   final _firestore = FirebaseFirestore.instance;
+  double _averageRating = 0;
 
   @override
   void initState() {
@@ -46,7 +47,10 @@ class _FoodDetailState extends State<FoodDetail> {
 
   Future<void> _loadUserCustomData() async {
     try {
-      final mealData = await MealService.getMeal(widget.meal['id']);
+      final mealId = widget.meal['id']?.toString();
+      if (mealId == null) return;
+      
+      final mealData = await MealService.getMeal(mealId);
       if (mealData != null) {
         setState(() {
           _userCustomData = mealData;
@@ -59,14 +63,25 @@ class _FoodDetailState extends State<FoodDetail> {
 
   Future<void> _loadReviews() async {
     try {
-      final reviews = await ReviewService.getReviews(widget.meal['id']);
+      final mealId = widget.meal['id']?.toString();
+      if (mealId == null) return;
+      
+      final reviews = await ReviewService.getReviews(mealId);
       final user = FirebaseAuth.instance.currentUser;
+      
+      // Calculate average rating
+      double averageRating = 0;
+      if (reviews.isNotEmpty) {
+        final totalRating = reviews.fold<double>(0, (sum, review) => sum + (review['rating'] as int));
+        averageRating = totalRating / reviews.length;
+      }
       
       setState(() {
         _reviews = reviews;
         _userReview = user != null 
             ? reviews.where((review) => review['userId'] == user.uid).firstOrNull
             : null;
+        _averageRating = averageRating;
       });
     } catch (e) {
       print('Error loading reviews: $e');
@@ -101,25 +116,40 @@ class _FoodDetailState extends State<FoodDetail> {
 
     setState(() => _isLoading = true);
     try {
-      String mealId = widget.meal['id'];
+      String mealId = widget.meal['id']?.toString() ?? '';
       
-      if (!mealId.startsWith('M')) {
+      if (mealId.isEmpty || !mealId.startsWith('M')) {
         final user = FirebaseAuth.instance.currentUser;
         if (user == null) throw Exception('User not authenticated');
 
-        final mealRef = _firestore.collection('Meal').doc();
-        await mealRef.set({
-          'title': widget.meal['strMeal'],
+        // Get the latest meal ID
+        final mealsSnapshot = await _firestore
+            .collection('Meals')
+            .orderBy('id', descending: true)
+            .limit(1)
+            .get();
+
+        String newId = 'M001';
+        if (mealsSnapshot.docs.isNotEmpty) {
+          final lastId = mealsSnapshot.docs.first.data()['id'] as String;
+          final number = int.parse(lastId.substring(1)) + 1;
+          newId = 'M${number.toString().padLeft(3, '0')}';
+        }
+
+        // Save the meal to Meals collection
+        await _firestore.collection('Meals').doc(newId).set({
+          'id': newId,
+          'title': widget.meal['strMeal'] ?? 'Unknown Meal',
           'calories': widget.meal['calories'] ?? 0,
           'protein': widget.meal['protein'] ?? 0,
           'carbs': widget.meal['carbs'] ?? 0,
-          'fat': widget.meal['fat'] ?? 0,
-          'imageUrl': widget.meal['strMealThumb'],
+          'imageUrl': widget.meal['strMealThumb'] ?? '',
           'userId': user.uid,
-          'createdAt': FieldValue.serverTimestamp(),
+          'isCustom': false,
+          'type': 'api',
         });
         
-        mealId = mealRef.id;
+        mealId = newId;
       }
 
       if (_userReview != null) {
@@ -399,6 +429,49 @@ class _FoodDetailState extends State<FoodDetail> {
                           ),
                         ),
                         const SizedBox(height: 16),
+                        // Average Rating Card
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Average Rating',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    ...List.generate(5, (index) {
+                                      return Icon(
+                                        index < _averageRating.floor()
+                                            ? Icons.star
+                                            : index < _averageRating.ceil()
+                                                ? Icons.star_half
+                                                : Icons.star_border,
+                                        color: Colors.amber,
+                                        size: 24,
+                                      );
+                                    }),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      '${_averageRating.toStringAsFixed(1)} (${_reviews.length} reviews)',
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
                         // Review form
                         Card(
                           child: Padding(
@@ -535,52 +608,56 @@ class _FoodDetailState extends State<FoodDetail> {
                         ),
                         const SizedBox(height: 16),
                         // Other reviews list
-                        ..._reviews.where((review) => review['userId'] != FirebaseAuth.instance.currentUser?.uid)
+                        ..._reviews
+                            .where((review) => review['userId'] != FirebaseAuth.instance.currentUser?.uid)
                             .map((review) => Card(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Text(
-                                      review['userName'] ?? 'Anonymous',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16.0),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Text(
+                                              review['isAnonymous'] == true 
+                                                  ? 'Anonymous'
+                                                  : review['userName'] ?? 'Unknown User',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const Spacer(),
+                                            Text(
+                                              review['date'] != null
+                                                  ? (review['date'] as Timestamp).toDate().toString().split(' ')[0]
+                                                  : 'Unknown date',
+                                              style: TextStyle(
+                                                color: Colors.grey[600],
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          children: List.generate(5, (index) {
+                                            return Icon(
+                                              index < (review['rating'] as int)
+                                                  ? Icons.star
+                                                  : Icons.star_border,
+                                              color: Colors.amber,
+                                              size: 16,
+                                            );
+                                          }),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(review['comment'] ?? ''),
+                                      ],
                                     ),
-                                    const Spacer(),
-                                    Text(
-                                      review['date'] != null
-                                          ? (review['date'] as Timestamp).toDate().toString().split(' ')[0]
-                                          : 'Unknown date',
-                                      style: TextStyle(
-                                        color: Colors.grey[600],
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: List.generate(5, (index) {
-                                    return Icon(
-                                      index < review['rating']
-                                          ? Icons.star
-                                          : Icons.star_border,
-                                      color: Colors.amber,
-                                      size: 16,
-                                    );
-                                  }),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(review['comment'] ?? ''),
-                              ],
-                            ),
-                          ),
-                        )).toList(),
+                                  ),
+                                ))
+                            .toList(),
                       ],
                     ),
                   ),
@@ -637,19 +714,19 @@ class _FoodDetailState extends State<FoodDetail> {
           newId = 'M${number.toString().padLeft(3, '0')}';
         }
 
-        final mealData = {
+        // Save the meal to Meals collection
+        await _firestore.collection('Meals').doc(newId).set({
           'id': newId,
           'title': widget.meal['strMeal'] ?? 'Unknown Meal',
           'calories': widget.meal['calories'] ?? 0,
-          'carbs': widget.meal['carbs'] ?? 0,
           'protein': widget.meal['protein'] ?? 0,
+          'carbs': widget.meal['carbs'] ?? 0,
           'imageUrl': widget.meal['strMealThumb'] ?? '',
           'userId': user.uid,
           'isCustom': false,
           'type': 'api',
-        };
-
-        await _firestore.collection('Meals').doc(newId).set(mealData);
+        });
+        
         finalMealId = newId;
       } else {
         finalMealId = mealId.toString();

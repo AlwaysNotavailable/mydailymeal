@@ -46,7 +46,7 @@ class MealHistoryService {
       if (mealId.startsWith('M')) {
         mealData = await MealService.getMeal(mealId) ?? {};
       } else {
-        final mealDoc = await _firestore.collection('Meal').doc(mealId).get();
+        final mealDoc = await _firestore.collection('Meals').doc(mealId).get();
         if (!mealDoc.exists) {
           throw Exception('Meal not found');
         }
