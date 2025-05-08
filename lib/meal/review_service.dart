@@ -5,161 +5,104 @@ class ReviewService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // Format user name to show only first word and first letter of second word
-  static String _formatUserName(String name) {
-    final words = name.split(' ');
-    if (words.length == 1) return words[0];
-    return '${words[0]} ${words[1][0]}***';
+  static Future<void> addReview(String mealId, int rating, String comment, {bool isAnonymous = false}) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('User not authenticated');
+
+    final reviewRef = _firestore.collection('Meal').doc(mealId).collection('Review').doc();
+    final userName = isAnonymous ? 'Anonymous User' : _formatUserName(user.displayName ?? user.email ?? 'Unknown User');
+
+    await reviewRef.set({
+      'userId': user.uid,
+      'userName': userName,
+      'rating': rating,
+      'comment': comment,
+      'date': FieldValue.serverTimestamp(),
+      'isAnonymous': isAnonymous,
+    });
   }
 
-  // Generate next review ID
-  static Future<String> _generateNextReviewId(String mealId) async {
-    final snapshot = await _firestore
-        .collection('Meals')
+  static Future<List<Map<String, dynamic>>> getReviews(String mealId) async {
+    final reviewsSnapshot = await _firestore
+        .collection('Meal')
         .doc(mealId)
         .collection('Review')
-        .orderBy('id', descending: true)
-        .limit(1)
+        .orderBy('date', descending: true)
         .get();
 
-    if (snapshot.docs.isEmpty) {
-      return 'R001';
-    }
-
-    final lastId = snapshot.docs.first.data()['id'] as String;
-    final number = int.parse(lastId.substring(1));
-    final nextNumber = number + 1;
-    return 'R${nextNumber.toString().padLeft(3, '0')}';
+    return reviewsSnapshot.docs.map((doc) => doc.data()).toList();
   }
 
-  // Add a review
-  static Future<String?> addReview(String mealId, {
-    required int rating,
-    required String comment,
-    required bool isAnonymous,
-  }) async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) return null;
+  static Future<Map<String, dynamic>?> getUserReview(String mealId) async {
+    final user = _auth.currentUser;
+    if (user == null) return null;
 
-      final reviewId = await _generateNextReviewId(mealId);
-      
-      final reviewData = {
-        'id': reviewId,
-        'userId': user.uid,
-        'userName': isAnonymous ? 'Anonymous' : _formatUserName(user.displayName ?? 'Anonymous'),
-        'isAnonymous': isAnonymous,
-        'rating': rating,
-        'comment': comment,
-        'date': FieldValue.serverTimestamp(),
-      };
+    final reviewSnapshot = await _firestore
+        .collection('Meal')
+        .doc(mealId)
+        .collection('Review')
+        .where('userId', isEqualTo: user.uid)
+        .get();
 
-      await _firestore
-          .collection('Meals')
-          .doc(mealId)
-          .collection('Review')
-          .doc(reviewId)
-          .set(reviewData);
-
-      return reviewId;
-    } catch (e) {
-      print('Error adding review: $e');
-      return null;
-    }
+    if (reviewSnapshot.docs.isEmpty) return null;
+    return reviewSnapshot.docs.first.data();
   }
 
-  // Get all reviews for a meal
-  static Future<List<Map<String, dynamic>>> getReviews(String mealId) async {
-    try {
-      final snapshot = await _firestore
-          .collection('Meals')
-          .doc(mealId)
-          .collection('Review')
-          .orderBy('date', descending: true)
-          .get();
+  static Future<void> updateReview(String mealId, int rating, String comment, {bool isAnonymous = false}) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('User not authenticated');
 
-      return snapshot.docs
-          .map((doc) => doc.data())
-          .toList();
-    } catch (e) {
-      print('Error getting reviews: $e');
-      return [];
+    final reviewSnapshot = await _firestore
+        .collection('Meal')
+        .doc(mealId)
+        .collection('Review')
+        .where('userId', isEqualTo: user.uid)
+        .get();
+
+    if (reviewSnapshot.docs.isEmpty) {
+      throw Exception('Review not found');
     }
+
+    final reviewRef = reviewSnapshot.docs.first.reference;
+    final userName = isAnonymous ? 'Anonymous User' : _formatUserName(user.displayName ?? user.email ?? 'Unknown User');
+
+    await reviewRef.update({
+      'rating': rating,
+      'comment': comment,
+      'date': FieldValue.serverTimestamp(),
+      'userName': userName,
+      'isAnonymous': isAnonymous,
+    });
   }
 
-  // Update a review
-  static Future<bool> updateReview(
-    String mealId,
-    String reviewId, {
-    required int rating,
-    required String comment,
-    required bool isAnonymous,
-  }) async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) return false;
+  static Future<void> deleteReview(String mealId) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('User not authenticated');
 
-      // Check if the review belongs to the current user
-      final reviewDoc = await _firestore
-          .collection('Meals')
-          .doc(mealId)
-          .collection('Review')
-          .doc(reviewId)
-          .get();
+    final reviewSnapshot = await _firestore
+        .collection('Meal')
+        .doc(mealId)
+        .collection('Review')
+        .where('userId', isEqualTo: user.uid)
+        .get();
 
-      if (!reviewDoc.exists || reviewDoc.data()?['userId'] != user.uid) {
-        return false;
-      }
-
-      await _firestore
-          .collection('Meals')
-          .doc(mealId)
-          .collection('Review')
-          .doc(reviewId)
-          .update({
-        'rating': rating,
-        'comment': comment,
-        'isAnonymous': isAnonymous,
-        'userName': isAnonymous ? 'Anonymous' : _formatUserName(user.displayName ?? 'Anonymous'),
-        'date': FieldValue.serverTimestamp(),
-      });
-
-      return true;
-    } catch (e) {
-      print('Error updating review: $e');
-      return false;
+    if (reviewSnapshot.docs.isEmpty) {
+      throw Exception('Review not found');
     }
+
+    await reviewSnapshot.docs.first.reference.delete();
   }
 
-  // Delete a review
-  static Future<bool> deleteReview(String mealId, String reviewId) async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) return false;
-
-      // Check if the review belongs to the current user
-      final reviewDoc = await _firestore
-          .collection('Meals')
-          .doc(mealId)
-          .collection('Review')
-          .doc(reviewId)
-          .get();
-
-      if (!reviewDoc.exists || reviewDoc.data()?['userId'] != user.uid) {
-        return false;
-      }
-
-      await _firestore
-          .collection('Meals')
-          .doc(mealId)
-          .collection('Review')
-          .doc(reviewId)
-          .delete();
-
-      return true;
-    } catch (e) {
-      print('Error deleting review: $e');
-      return false;
+  static String _formatUserName(String fullName) {
+    if (fullName.isEmpty) return 'Unknown User';
+    
+    final parts = fullName.split(' ');
+    if (parts.length == 1) {
+      return '${parts[0][0]}***';
     }
+    
+    final firstName = parts[0];
+    final lastName = parts[parts.length - 1];
+    return '${firstName[0]}*** ${lastName[0]}***';
   }
 } 

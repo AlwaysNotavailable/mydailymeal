@@ -51,7 +51,6 @@ class _MealPageState extends State<MealPage> {
           final food = data['foods'][0];
           final nutrients = food['foodNutrients'] as List;
           
-          // Extract nutritional information
           double calories = 0;
           double protein = 0;
           double carbs = 0;
@@ -62,16 +61,16 @@ class _MealPageState extends State<MealPage> {
             final value = nutrient['value'] ?? 0.0;
 
             switch (nutrientId) {
-              case 1008: // Energy (kcal)
+              case 1008:
                 calories = value;
                 break;
-              case 1003: // Protein
+              case 1003:
                 protein = value;
                 break;
-              case 1005: // Carbohydrates
+              case 1005:
                 carbs = value;
                 break;
-              case 1004: // Total fat
+              case 1004:
                 fat = value;
                 break;
             }
@@ -109,11 +108,12 @@ class _MealPageState extends State<MealPage> {
   Future<void> _fetchMeals() async {
     setState(() => _isLoading = true);
     try {
-      // Fetch from Firebase (database meals)
       _databaseMeals = await MealService.getAllMeals();
       print('Fetched ${_databaseMeals.length} meals from Firebase');
+      setState(() {
+        _filteredDatabaseMeals = _databaseMeals;
+      });
 
-      // Fetch from TheMealDB API (suggestions)
       List<Map<String, dynamic>> apiMeals = [];
       for (int i = 0; i < 10; i++) {
         try {
@@ -125,15 +125,18 @@ class _MealPageState extends State<MealPage> {
               if (apiMeal != null) {
                 print('Fetched random meal: ${apiMeal['strMeal']}');
                 
-                // Get nutritional information from USDA API
                 final nutritionInfo = await _getNutritionalInfo(apiMeal['strMeal']);
                 apiMeal.addAll(nutritionInfo);
                 
-                // Add only if it doesn't already exist
                 if (!apiMeals.any((meal) => 
                   (meal['strMeal'] == apiMeal['strMeal']) || 
                   (meal['title'] == apiMeal['strMeal']))) {
                   apiMeals.add(apiMeal);
+                  
+                  setState(() {
+                    _apiMeals = apiMeals;
+                    _filteredApiMeals = apiMeals;
+                  });
                 }
               }
             }
@@ -142,16 +145,9 @@ class _MealPageState extends State<MealPage> {
           print('Error fetching random meal: $e');
           continue;
         }
-        // Add a small delay to avoid hitting rate limits
         await Future.delayed(const Duration(milliseconds: 100));
       }
       print('Fetched ${apiMeals.length} meals from API');
-
-      setState(() {
-        _apiMeals = apiMeals;
-        _filteredDatabaseMeals = _databaseMeals;
-        _filteredApiMeals = apiMeals;
-      });
     } catch (e) {
       print('Error fetching meals: $e');
     } finally {
@@ -210,7 +206,7 @@ class _MealPageState extends State<MealPage> {
                   ),
                 ).then((success) {
                   if (success == true) {
-                    _fetchMeals(); // Refresh the meal list
+                    _fetchMeals();
                   }
                 });
               }
@@ -292,7 +288,6 @@ class _MealPageState extends State<MealPage> {
   }
 
   Widget _buildMealCard(Map<String, dynamic> meal) {
-    // Use custom data if available, otherwise use original data
     final displayData = meal;
     
     return Card(
