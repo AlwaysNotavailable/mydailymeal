@@ -161,19 +161,6 @@ class MealService {
     return mealRef.id;
   }
 
-  static Future<List<Map<String, dynamic>>> getAllMeals() async {
-    final user = _auth.currentUser;
-    if (user == null) throw Exception('User not authenticated');
-
-    final snapshot = await _firestore
-        .collection('Meal')
-        .where('userId', isEqualTo: user.uid)
-        .orderBy('createdAt', descending: true)
-        .get();
-
-    return snapshot.docs.map((doc) => doc.data()).toList();
-  }
-
   static Future<void> updateMeal({
     required String mealId,
     required String title,
