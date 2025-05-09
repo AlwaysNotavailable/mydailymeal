@@ -7,6 +7,8 @@ import 'Lunch.dart';
 import 'Dinner.dart';
 import 'IdealWeight.dart';
 import 'meal/meal.dart';
+import 'profile.dart';
+import 'adminPage.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -17,6 +19,7 @@ class Home extends StatefulWidget {
 
 class _HomeState extends State<Home> {
   int _selectedIndex = 0;
+  bool _isAdmin = false;
 
   // Example pages for other tabs (optional placeholders)
   static const List<Widget> _widgetOptions = <Widget>[
@@ -27,6 +30,14 @@ class _HomeState extends State<Home> {
   ];
 
   void _onItemTapped(int index) {
+    if (_isAdmin && index == 4) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => adminPage()),
+      );
+      return;
+    }
+
     if (index == 1) {
       // Progress tapped, navigate to IdealWeight page
       Navigator.push(
@@ -37,6 +48,12 @@ class _HomeState extends State<Home> {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const MealPage()),
+      );
+    } else if (index == 3) {
+      // Profile tapped, navigate to Profile page
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => Profile()),
       );
     } else {
       // Update index for other tabs
@@ -63,6 +80,7 @@ class _HomeState extends State<Home> {
   void initState() {
     super.initState();
     fetchData();
+    checkAdminStatus();
   }
 
   DateTime getStartDate() {
@@ -79,8 +97,19 @@ class _HomeState extends State<Home> {
       default:
         return DateTime(2000); // Arbitrary early date for 'Overall'
     }
+  }
 
-
+  void checkAdminStatus() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      final doc =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (doc.exists && doc['isAdmin'] == true) {
+        setState(() {
+          _isAdmin = true;
+        });
+      }
+    }
   }
 
   void fetchData() async {
@@ -101,15 +130,20 @@ class _HomeState extends State<Home> {
     final collections = ['breakfast', 'lunch', 'dinner'];
 
     for (final meal in collections) {
-      final snapshot = await FirebaseFirestore.instance
-          .collection(meal)
-          .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
-          .where('user', isEqualTo: uid)
-          .get();
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collection(meal)
+              .where(
+                'date',
+                isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+              )
+              .where('user', isEqualTo: uid)
+              .get();
 
       for (final doc in snapshot.docs) {
         final data = doc.data();
-        final mealName = meal[0].toUpperCase() + meal.substring(1); // Capitalize
+        final mealName =
+            meal[0].toUpperCase() + meal.substring(1); // Capitalize
         meals[mealName]!['calories'] += data['calories'] ?? 0;
         meals[mealName]!['carbs'] += data['carbs'] ?? 0;
         meals[mealName]!['protein'] += data['protein'] ?? 0;
@@ -142,12 +176,12 @@ class _HomeState extends State<Home> {
           DropdownButton<String>(
             value: selectedFilter,
             items:
-            filters.map((filter) {
-              return DropdownMenuItem<String>(
-                value: filter,
-                child: Text(filter),
-              );
-            }).toList(),
+                filters.map((filter) {
+                  return DropdownMenuItem<String>(
+                    value: filter,
+                    child: Text(filter),
+                  );
+                }).toList(),
             onChanged: (value) {
               setState(() {
                 selectedFilter = value!;
@@ -186,50 +220,50 @@ class _HomeState extends State<Home> {
             Expanded(
               child: ListView(
                 children:
-                meals.keys.map((title) {
-                  final meal = meals[title]!;
-                  return ListTile(
-                    title: Text(title),
-                    subtitle: Text(
-                      'Calories: ${meal['calories']}cal , Carbs: ${meal['carbs']}g carbs , Protein: ${meal['protein']}g',
-                    ),
-                    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                    onTap: () {
-                      if (title == 'Breakfast') {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder:
-                                (context) =>
-                                Breakfast(filter: selectedFilter),
-                          ),
-                        );
-                      } else if (title == 'Lunch') {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder:
-                                (context) => Lunch(filter: selectedFilter),
-                          ),
-                        );
-                      } else if (title == 'Dinner') {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder:
-                                (context) => Dinner(filter: selectedFilter),
-                          ),
-                        );
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('No page for $title yet!'),
-                          ),
-                        );
-                      }
-                    },
-                  );
-                }).toList(),
+                    meals.keys.map((title) {
+                      final meal = meals[title]!;
+                      return ListTile(
+                        title: Text(title),
+                        subtitle: Text(
+                          'Calories: ${meal['calories']}cal , Carbs: ${meal['carbs']}g carbs , Protein: ${meal['protein']}g',
+                        ),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                        onTap: () {
+                          if (title == 'Breakfast') {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (context) =>
+                                        Breakfast(filter: selectedFilter),
+                              ),
+                            );
+                          } else if (title == 'Lunch') {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (context) => Lunch(filter: selectedFilter),
+                              ),
+                            );
+                          } else if (title == 'Dinner') {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (context) => Dinner(filter: selectedFilter),
+                              ),
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('No page for $title yet!'),
+                              ),
+                            );
+                          }
+                        },
+                      );
+                    }).toList(),
               ),
             ),
             const SizedBox(height: 16),
@@ -263,23 +297,25 @@ class _HomeState extends State<Home> {
         onTap: _onItemTapped,
         selectedItemColor: Colors.green,
         unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
+        items: [
+          const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          const BottomNavigationBarItem(
             icon: Icon(Icons.bar_chart),
             label: 'Progress',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.restaurant_menu),
             label: 'Food',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.person),
             label: 'Profile',
           ),
+          if (_isAdmin)
+            BottomNavigationBarItem(
+              icon: Icon(Icons.admin_panel_settings),
+              label: 'Admin',
+            ),
         ],
       ),
     );
@@ -302,9 +338,9 @@ class NutrientCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width:
-      isFullWidth
-          ? double.infinity
-          : MediaQuery.of(context).size.width / 2 - 24,
+          isFullWidth
+              ? double.infinity
+              : MediaQuery.of(context).size.width / 2 - 24,
       padding: const EdgeInsets.all(16),
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(

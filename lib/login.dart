@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -72,9 +73,9 @@ class _LoginState extends State<Login> {
                   keyboardType: TextInputType.text,
                   validator:
                       (value) =>
-                  value!.length < 6
-                      ? 'Password must be at least 6 characters'
-                      : null,
+                          value!.length < 6
+                              ? 'Password must be at least 6 characters'
+                              : null,
                   obscureText: true,
                   decoration: InputDecoration(
                     filled: true,
@@ -96,9 +97,7 @@ class _LoginState extends State<Login> {
                   alignment: Alignment.centerLeft,
                   child: TextButton(
                     onPressed: () {
-                      Navigator.pushNamed(
-                          context,
-                          '/resetpassword');
+                      Navigator.pushNamed(context, '/resetpassword');
                     },
                     style: TextButton.styleFrom(padding: EdgeInsets.zero),
                     child: Text(
@@ -138,10 +137,7 @@ class _LoginState extends State<Login> {
                 const SizedBox(height: 20),
                 TextButton(
                   onPressed: () {
-                    Navigator.pushNamed(
-                        context,
-                        '/register',
-                    );
+                    Navigator.pushNamed(context, '/register');
                   },
                   child: Text(
                     'New user?Sign Up',
@@ -169,14 +165,17 @@ class _LoginState extends State<Login> {
       //Once login successfully
       Navigator.pushNamed(context, '/home', arguments: email);
     } on FirebaseException catch (e) {
-      ScaffoldMessenger.of(context,).showSnackBar(SnackBar(content: Text('Login failed: ${e.message}'),
-      backgroundColor: Colors.red,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Login failed: ${e.message}'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
   @override
-  void dispose () {
+  void dispose() {
     _emailCTRL.dispose();
     _passCTRL.dispose();
     super.dispose();
