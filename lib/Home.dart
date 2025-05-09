@@ -6,6 +6,7 @@ import 'Breakfast.dart';
 import 'Lunch.dart';
 import 'Dinner.dart';
 import 'IdealWeight.dart';
+import 'meal/meal.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -21,7 +22,7 @@ class _HomeState extends State<Home> {
   static const List<Widget> _widgetOptions = <Widget>[
     Center(child: Text('Home Page')),
     SizedBox.shrink(), // Progress will trigger navigation instead
-    Center(child: Text('Food Page')),
+    MealPage(), // Food tab now shows MealPage
     Center(child: Text('Profile Page')),
   ];
 
@@ -31,6 +32,11 @@ class _HomeState extends State<Home> {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => IdealWeight()),
+      );
+    } else if (index == 2) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const MealPage()),
       );
     } else {
       // Update index for other tabs
@@ -238,7 +244,10 @@ class _HomeState extends State<Home> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  // Add meal logic
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const MealPage()),
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
