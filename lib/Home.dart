@@ -80,7 +80,6 @@ class _HomeState extends State<Home> {
   void fetchData() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
-    print('Current UID: $uid');
 
     setState(() {
       totalCalories = 0;
@@ -96,9 +95,10 @@ class _HomeState extends State<Home> {
 
     for (final meal in collections) {
       final snapshot = await FirebaseFirestore.instance
-          .collection(meal)
+          .collection('consumedMeals')
+          .doc(uid)
+          .collection(meal) // subcollection also named 'breakfast', 'lunch', or 'dinner'
           .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
-          .where('user', isEqualTo: uid)
           .get();
 
       for (final doc in snapshot.docs) {
@@ -188,32 +188,39 @@ class _HomeState extends State<Home> {
                       'Calories: ${meal['calories']}cal , Carbs: ${meal['carbs']}g carbs , Protein: ${meal['protein']}g',
                     ),
                     trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                    onTap: () {
+                    onTap: () async {
                       if (title == 'Breakfast') {
-                        Navigator.push(
+                        final result = await Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder:
-                                (context) =>
-                                Breakfast(filter: selectedFilter),
+                            builder: (context) => Breakfast(filter: selectedFilter),
                           ),
                         );
+                        if (result == true) {
+                          fetchData(); // Refresh home page after returning from Breakfast page
+                        }
                       } else if (title == 'Lunch') {
-                        Navigator.push(
+                        final result = await Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder:
                                 (context) => Lunch(filter: selectedFilter),
                           ),
                         );
+                        if (result == true) {
+                          fetchData(); // Refresh home page after returning from Breakfast page
+                        }
                       } else if (title == 'Dinner') {
-                        Navigator.push(
+                        final result = await Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder:
                                 (context) => Dinner(filter: selectedFilter),
                           ),
                         );
+                        if (result == true) {
+                          fetchData(); // Refresh home page after returning from Breakfast page
+                        }
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
