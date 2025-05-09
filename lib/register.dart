@@ -17,8 +17,6 @@ class _RegisterState extends State<Register> {
   final TextEditingController _passCTRL = TextEditingController();
   final TextEditingController _confirmpassCTRL = TextEditingController();
   final TextEditingController _ageCTRL = TextEditingController();
-  final TextEditingController _heightCTRL = TextEditingController();
-  final TextEditingController _weightCTRL = TextEditingController();
 
   DateTime? _birthDate;
   String _gender = 'Male';
@@ -169,66 +167,6 @@ class _RegisterState extends State<Register> {
                       ),
                       SizedBox(height: 20),
                       Text(
-                        'Your height (cm)',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      TextFormField(
-                        controller: _heightCTRL,
-                        keyboardType: TextInputType.number,
-                        validator:
-                            (value) =>
-                                value!.isEmpty
-                                    ? 'Enter your height (cm)'
-                                    : null,
-                        decoration: InputDecoration(
-                          hintText: 'Enter your height',
-                          filled: true,
-                          fillColor: Colors.black12,
-                          contentPadding: EdgeInsets.symmetric(
-                            vertical: 10.0,
-                            horizontal: 20.0,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10.0),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                      ),
-                      SizedBox(height: 20),
-                      Text(
-                        'Your weight (kg)',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      TextFormField(
-                        controller: _weightCTRL,
-                        keyboardType: TextInputType.number,
-                        validator:
-                            (value) =>
-                                value!.isEmpty
-                                    ? 'Enter your weight (kg)'
-                                    : null,
-                        decoration: InputDecoration(
-                          hintText: 'Enter your weight',
-                          filled: true,
-                          fillColor: Colors.black12,
-                          contentPadding: EdgeInsets.symmetric(
-                            vertical: 10.0,
-                            horizontal: 20.0,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10.0),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                      ),
-                      SizedBox(height: 20),
-                      Text(
                         'Pick your date of birth',
                         style: TextStyle(
                           fontSize: 18,
@@ -362,8 +300,7 @@ class _RegisterState extends State<Register> {
             'birthDate': _birthDate,
             'gender': _gender,
             'image': '', // Empty for now
-            'height': _heightCTRL.text.trim(),
-            'weight': _weightCTRL.text.trim(),
+            'isAdmin': false,
           });
 
       // Step 4: Navigate or Show Success

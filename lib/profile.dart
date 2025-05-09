@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:mydailymeal/Home.dart';
+import 'IdealWeight.dart';
+import 'adminPage.dart';
+import 'meal/meal.dart';
 
 class Profile extends StatefulWidget {
   @override
@@ -10,8 +14,98 @@ class Profile extends StatefulWidget {
 class _ProfileState extends State<Profile> {
   Map<String, dynamic>? userData;
   int _selectedIndex = 3;
+  bool _isAdmin = false;
 
   final String defaultImage = 'assets/images/defaulticon.png';
+
+  @override
+  void initState() {
+    super.initState();
+    fetchUserData();
+    checkAdminStatus();
+  }
+
+  void checkAdminStatus() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      final doc =
+      await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (doc.exists && doc['isAdmin'] == true) {
+        setState(() {
+          _isAdmin = true;
+        });
+      }
+    }
+  }
+
+  Future<void> fetchUserData() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      final doc =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      setState(() {
+        userData = doc.data();
+        _isAdmin = doc['isAdmin'] ?? false;
+      });
+    }
+  }
+
+  void _onItemTapped(int index) {
+    switch (index) {
+      case 0:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => Home()),
+        );
+        break;
+      case 1:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => IdealWeight()),
+        );
+        break;
+      case 2:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const MealPage()),
+        );
+        break;
+      case 3:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => Profile()),
+        );
+        break;
+      case 4:
+        if (_isAdmin) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => adminPage()),
+          );
+        }
+        break;
+      default:
+        setState(() => _selectedIndex = index);
+    }
+  }
+
+  Widget infoTile(IconData icon, String label) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 5),
+      child: Row(
+        children: [
+          Icon(icon),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,50 +121,30 @@ class _ProfileState extends State<Profile> {
         padding: EdgeInsets.symmetric(vertical: 16),
         child: Column(
           children: [
-            Stack(
-              fit: StackFit.loose,
-              alignment: AlignmentDirectional.center,
-              children: [
-                Container(
-                  width: 300,
-                  height: 250,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.black, width: 2.0),
-                    shape: BoxShape.rectangle,
-                  ),
-                  child: Image.network(
-                    imageUrl.isEmpty ? defaultImage : imageUrl,
-                    fit: BoxFit.contain,
-                  ),
-                ),
-              ],
+            CircleAvatar(
+              radius: 80,
+              backgroundImage:
+                  imageUrl.isEmpty
+                      ? AssetImage(defaultImage)
+                      : NetworkImage(imageUrl) as ImageProvider,
             ),
             SizedBox(height: 20),
-            Column(
-              children: [
-                Text(
-                  userData!['username'] ?? '',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                Text('@' + (userData!['username'] ?? '')),
-              ],
+            Text(
+              userData!['username'] ?? '',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
+            Text('@' + (userData!['username'] ?? '')),
             SizedBox(height: 50),
-            Column(
-              children: [
-                infoTile(Icons.email, userData!['email'] ?? ''),
-                SizedBox(height: 35),
-                infoTile(Icons.male, userData!['gender'] ?? ''),
-                SizedBox(height: 35),
-                infoTile(Icons.cake, userData!['age'].toString()),
-                SizedBox(height: 35),
-              ],
-            ),
-            SizedBox(height: 20),
+            infoTile(Icons.email, userData!['email'] ?? ''),
+            SizedBox(height: 35),
+            infoTile(Icons.male, userData!['gender'] ?? ''),
+            SizedBox(height: 35),
+            infoTile(Icons.cake, userData!['age'].toString()),
+            SizedBox(height: 35),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 30),
               child: Column(
-                children: <Widget>[
+                children: [
                   SizedBox(
                     width: double.infinity,
                     height: 43,
@@ -125,72 +199,29 @@ class _ProfileState extends State<Profile> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.show_chart),
+        selectedItemColor: Colors.green,
+        unselectedItemColor: Colors.grey,
+        items: [
+          const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.bar_chart),
             label: 'Progress',
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.fastfood), label: 'Food'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-        ],
-      ),
-    );
-  }
-
-  Widget infoTile(IconData icon, String label) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 5),
-      child: Row(
-        children: [
-          Icon(icon),
-          SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.restaurant_menu),
+            label: 'Food',
           ),
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: 'Profile',
+          ),
+          if (_isAdmin)
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.admin_panel_settings),
+              label: 'Admin',
+            ),
         ],
       ),
     );
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    fetchUserData();
-  }
-
-  Future<void> fetchUserData() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid != null) {
-      final doc =
-          await FirebaseFirestore.instance.collection('users').doc(uid).get();
-      setState(() {
-        userData = doc.data();
-      });
-    }
-  }
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-    // Navigate to other pages
-    switch (index) {
-      case 0:
-        Navigator.pushNamed(context, '/dashboard');
-        break;
-      case 1:
-        Navigator.pushNamed(context, '/progress');
-        break;
-      case 2:
-        Navigator.pushNamed(context, '/food');
-        break;
-      case 3:
-        break; // already on profile
-    }
   }
 }
