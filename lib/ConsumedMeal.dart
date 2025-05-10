@@ -1,42 +1,40 @@
 import 'package:flutter/material.dart';
-import 'firebase_options.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:intl/intl.dart'; // For date formatting
 import 'package:firebase_auth/firebase_auth.dart';
 import 'EditConsumedMeal.dart';
 
-class Lunch extends StatefulWidget {
+class ConsumedMeal extends StatefulWidget {
   final String filter;
+  final String mealType; // e.g., 'breakfast', 'lunch', 'dinner'
 
-  const Lunch({super.key, required this.filter});
+  const ConsumedMeal({super.key, required this.filter, required this.mealType});
 
   @override
-  State<Lunch> createState() => _LunchState();
+  State<ConsumedMeal> createState() => _ConsumedMealState();
 }
 
-class _LunchState extends State<Lunch> {
+class _ConsumedMealState extends State<ConsumedMeal> {
   List<MealItem> meals = [];
   List<bool> selected = [];
 
   String getAppBarTitle() {
+    String meal = widget.mealType[0].toUpperCase() + widget.mealType.substring(1);
     switch (widget.filter) {
       case 'Today':
-        return 'Lunch Consumed Today';
+        return '$meal Consumed Today';
       case 'This Month':
-        return 'Lunch Consumed This Month';
+        return '$meal Consumed This Month';
       case 'This Year':
-        return 'Lunch Consumed This Year';
+        return '$meal Consumed This Year';
       case 'Overall':
-        return 'Lunch Consumed Overall';
+        return '$meal Consumed Overall';
       default:
-        return 'Lunch Log';
+        return '$meal Log';
     }
   }
 
   bool isMatchingFilter(DateTime docDate) {
     final now = DateTime.now();
-
     switch (widget.filter) {
       case 'Today':
         return docDate.year == now.year &&
@@ -67,10 +65,8 @@ class _LunchState extends State<Lunch> {
     final snapshot = await FirebaseFirestore.instance
         .collection('consumedMeals')
         .doc(uid)
-        .collection('lunch')
+        .collection(widget.mealType)
         .get();
-
-    final now = DateTime.now();
 
     List<MealItem> fetchedMeals = [];
 
@@ -131,19 +127,14 @@ class _LunchState extends State<Lunch> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child:
-        meals.isEmpty
+        child: meals.isEmpty
             ? Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const Spacer(),
-            const Text(
-              "Oops! No lunch items found. Please try changing the filter and try again.",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w500,
-              ),
+            Text(
+              "Oops! No ${widget.mealType[0].toUpperCase()}${widget.mealType.substring(1)} meals found. Please try changing the filter and try again.",
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -154,19 +145,15 @@ class _LunchState extends State<Lunch> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
                 padding: const EdgeInsets.symmetric(
-                  vertical: 16,
-                  horizontal: 32,
-                ),
+                    vertical: 16, horizontal: 32),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
               child: const Text(
                 'Add Meal',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+                style:
+                TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
             const Spacer(),
@@ -196,16 +183,18 @@ class _LunchState extends State<Lunch> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(
-                          icon: Icon(Icons.edit),
+                          icon: const Icon(Icons.edit),
                           onPressed: () async {
-                            final currentUser = FirebaseAuth.instance.currentUser;
+                            final currentUser =
+                                FirebaseAuth.instance.currentUser;
                             if (currentUser == null) return;
 
                             final uid = currentUser.uid;
-                            final consumedMealRef = FirebaseFirestore.instance
+                            final consumedMealRef = FirebaseFirestore
+                                .instance
                                 .collection('consumedMeals')
                                 .doc(uid)
-                                .collection('lunch')
+                                .collection(widget.mealType)
                                 .doc(meals[index].id);
 
                             final result = await Navigator.push(
@@ -214,15 +203,14 @@ class _LunchState extends State<Lunch> {
                                 builder: (context) => EditConsumedMeal(
                                   consumedMealRef: consumedMealRef,
                                   mealId: meals[index].id,
-                                  mealType: 'lunch',
+                                  mealType: widget.mealType,
                                 ),
                               ),
                             );
 
                             if (result == true) {
-                              fetchMeals(); // Refresh the meals list if the user edited something
+                              fetchMeals(); // Refresh
                             }
-
                           },
                         ),
                         Checkbox(
@@ -262,9 +250,7 @@ class _LunchState extends State<Lunch> {
                     child: const Text(
                       'Add Meal',
                       style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+                          fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),
@@ -272,8 +258,7 @@ class _LunchState extends State<Lunch> {
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () async {
-                      final selectedIndexes =
-                      selected
+                      final selectedIndexes = selected
                           .asMap()
                           .entries
                           .where((entry) => entry.value)
@@ -284,8 +269,7 @@ class _LunchState extends State<Lunch> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text(
-                              "You haven't selected any meal checkbox yet. Please try again!",
-                            ),
+                                "You haven't selected any meal checkbox yet. Please try again!"),
                             backgroundColor: Colors.orange,
                             duration: Duration(seconds: 2),
                           ),
@@ -293,7 +277,8 @@ class _LunchState extends State<Lunch> {
                         return;
                       }
 
-                      final uid = FirebaseAuth.instance.currentUser?.uid;
+                      final uid =
+                          FirebaseAuth.instance.currentUser?.uid;
                       if (uid == null) return;
 
                       for (var index in selectedIndexes) {
@@ -301,7 +286,7 @@ class _LunchState extends State<Lunch> {
                         await FirebaseFirestore.instance
                             .collection('consumedMeals')
                             .doc(uid)
-                            .collection('lunch')
+                            .collection(widget.mealType)
                             .doc(mealId)
                             .delete();
                       }
@@ -313,7 +298,6 @@ class _LunchState extends State<Lunch> {
                           duration: Duration(seconds: 2),
                         ),
                       );
-                      // Refresh the UI
                       fetchMeals();
                     },
                     style: ElevatedButton.styleFrom(
@@ -326,9 +310,7 @@ class _LunchState extends State<Lunch> {
                     child: const Text(
                       'Delete',
                       style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+                          fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),

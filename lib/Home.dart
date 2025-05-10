@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'Breakfast.dart';
-import 'Lunch.dart';
-import 'Dinner.dart';
+import 'ConsumedMeal.dart';
 import 'IdealWeight.dart';
 import 'meal/meal.dart';
+import 'profile.dart';
+import 'adminPage.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -17,6 +17,7 @@ class Home extends StatefulWidget {
 
 class _HomeState extends State<Home> {
   int _selectedIndex = 0;
+  bool _isAdmin = false;
 
   // Example pages for other tabs (optional placeholders)
   static const List<Widget> _widgetOptions = <Widget>[
@@ -27,6 +28,14 @@ class _HomeState extends State<Home> {
   ];
 
   void _onItemTapped(int index) {
+    if (_isAdmin && index == 4) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => adminPage()),
+      );
+      return;
+    }
+
     if (index == 1) {
       // Progress tapped, navigate to IdealWeight page
       Navigator.push(
@@ -37,6 +46,12 @@ class _HomeState extends State<Home> {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const MealPage()),
+      );
+    } else if (index == 3) {
+      // Profile tapped, navigate to Profile page
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => Profile()),
       );
     } else {
       // Update index for other tabs
@@ -63,6 +78,7 @@ class _HomeState extends State<Home> {
   void initState() {
     super.initState();
     fetchData();
+    checkAdminStatus();
   }
 
   DateTime getStartDate() {
@@ -80,7 +96,19 @@ class _HomeState extends State<Home> {
         return DateTime(2000); // Arbitrary early date for 'Overall'
     }
 
+  }
 
+  void checkAdminStatus() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      final doc =
+      await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (doc.exists && doc['isAdmin'] == true) {
+        setState(() {
+          _isAdmin = true;
+        });
+      }
+    }
   }
 
   void fetchData() async {
@@ -194,47 +222,21 @@ class _HomeState extends State<Home> {
                       'Calories: ${meal['calories']}cal , Carbs: ${meal['carbs']}g carbs , Protein: ${meal['protein']}g',
                     ),
                     trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                    onTap: () async {
-                      if (title == 'Breakfast') {
+                      onTap: () async {
+                        final mealType = title.toLowerCase(); // 'breakfast', 'lunch', or 'dinner'
                         final result = await Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => Breakfast(filter: selectedFilter),
+                            builder: (context) => ConsumedMeal(
+                              mealType: mealType,
+                              filter: selectedFilter,
+                            ),
                           ),
                         );
                         if (result == true) {
-                          fetchData(); // Refresh home page after returning from Breakfast page
+                          fetchData(); // Refresh home page after returning from TodayMeal page
                         }
-                      } else if (title == 'Lunch') {
-                        final result = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder:
-                                (context) => Lunch(filter: selectedFilter),
-                          ),
-                        );
-                        if (result == true) {
-                          fetchData(); // Refresh home page after returning from Breakfast page
-                        }
-                      } else if (title == 'Dinner') {
-                        final result = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder:
-                                (context) => Dinner(filter: selectedFilter),
-                          ),
-                        );
-                        if (result == true) {
-                          fetchData(); // Refresh home page after returning from Breakfast page
-                        }
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('No page for $title yet!'),
-                          ),
-                        );
                       }
-                    },
                   );
                 }).toList(),
               ),
@@ -270,23 +272,25 @@ class _HomeState extends State<Home> {
         onTap: _onItemTapped,
         selectedItemColor: Colors.green,
         unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
+        items: [
+          const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          const BottomNavigationBarItem(
             icon: Icon(Icons.bar_chart),
             label: 'Progress',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.restaurant_menu),
             label: 'Food',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.person),
             label: 'Profile',
           ),
+          if (_isAdmin)
+            BottomNavigationBarItem(
+              icon: Icon(Icons.admin_panel_settings),
+              label: 'Admin',
+            ),
         ],
       ),
     );
