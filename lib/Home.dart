@@ -97,13 +97,14 @@ class _HomeState extends State<Home> {
       default:
         return DateTime(2000); // Arbitrary early date for 'Overall'
     }
+
   }
 
   void checkAdminStatus() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
       final doc =
-          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      await FirebaseFirestore.instance.collection('users').doc(uid).get();
       if (doc.exists && doc['isAdmin'] == true) {
         setState(() {
           _isAdmin = true;
@@ -115,7 +116,6 @@ class _HomeState extends State<Home> {
   void fetchData() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
-    print('Current UID: $uid');
 
     setState(() {
       totalCalories = 0;
@@ -130,20 +130,16 @@ class _HomeState extends State<Home> {
     final collections = ['breakfast', 'lunch', 'dinner'];
 
     for (final meal in collections) {
-      final snapshot =
-          await FirebaseFirestore.instance
-              .collection(meal)
-              .where(
-                'date',
-                isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
-              )
-              .where('user', isEqualTo: uid)
-              .get();
+      final snapshot = await FirebaseFirestore.instance
+          .collection('consumedMeals')
+          .doc(uid)
+          .collection(meal) // subcollection also named 'breakfast', 'lunch', or 'dinner'
+          .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+          .get();
 
       for (final doc in snapshot.docs) {
         final data = doc.data();
-        final mealName =
-            meal[0].toUpperCase() + meal.substring(1); // Capitalize
+        final mealName = meal[0].toUpperCase() + meal.substring(1); // Capitalize
         meals[mealName]!['calories'] += data['calories'] ?? 0;
         meals[mealName]!['carbs'] += data['carbs'] ?? 0;
         meals[mealName]!['protein'] += data['protein'] ?? 0;
@@ -176,12 +172,12 @@ class _HomeState extends State<Home> {
           DropdownButton<String>(
             value: selectedFilter,
             items:
-                filters.map((filter) {
-                  return DropdownMenuItem<String>(
-                    value: filter,
-                    child: Text(filter),
-                  );
-                }).toList(),
+            filters.map((filter) {
+              return DropdownMenuItem<String>(
+                value: filter,
+                child: Text(filter),
+              );
+            }).toList(),
             onChanged: (value) {
               setState(() {
                 selectedFilter = value!;
@@ -220,50 +216,57 @@ class _HomeState extends State<Home> {
             Expanded(
               child: ListView(
                 children:
-                    meals.keys.map((title) {
-                      final meal = meals[title]!;
-                      return ListTile(
-                        title: Text(title),
-                        subtitle: Text(
-                          'Calories: ${meal['calories']}cal , Carbs: ${meal['carbs']}g carbs , Protein: ${meal['protein']}g',
-                        ),
-                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                        onTap: () {
-                          if (title == 'Breakfast') {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder:
-                                    (context) =>
-                                        Breakfast(filter: selectedFilter),
-                              ),
-                            );
-                          } else if (title == 'Lunch') {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder:
-                                    (context) => Lunch(filter: selectedFilter),
-                              ),
-                            );
-                          } else if (title == 'Dinner') {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder:
-                                    (context) => Dinner(filter: selectedFilter),
-                              ),
-                            );
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('No page for $title yet!'),
-                              ),
-                            );
-                          }
-                        },
-                      );
-                    }).toList(),
+                meals.keys.map((title) {
+                  final meal = meals[title]!;
+                  return ListTile(
+                    title: Text(title),
+                    subtitle: Text(
+                      'Calories: ${meal['calories']}cal , Carbs: ${meal['carbs']}g carbs , Protein: ${meal['protein']}g',
+                    ),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                    onTap: () async {
+                      if (title == 'Breakfast') {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => Breakfast(filter: selectedFilter),
+                          ),
+                        );
+                        if (result == true) {
+                          fetchData(); // Refresh home page after returning from Breakfast page
+                        }
+                      } else if (title == 'Lunch') {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder:
+                                (context) => Lunch(filter: selectedFilter),
+                          ),
+                        );
+                        if (result == true) {
+                          fetchData(); // Refresh home page after returning from Breakfast page
+                        }
+                      } else if (title == 'Dinner') {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder:
+                                (context) => Dinner(filter: selectedFilter),
+                          ),
+                        );
+                        if (result == true) {
+                          fetchData(); // Refresh home page after returning from Breakfast page
+                        }
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('No page for $title yet!'),
+                          ),
+                        );
+                      }
+                    },
+                  );
+                }).toList(),
               ),
             ),
             const SizedBox(height: 16),
@@ -338,9 +341,9 @@ class NutrientCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width:
-          isFullWidth
-              ? double.infinity
-              : MediaQuery.of(context).size.width / 2 - 24,
+      isFullWidth
+          ? double.infinity
+          : MediaQuery.of(context).size.width / 2 - 24,
       padding: const EdgeInsets.all(16),
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
