@@ -18,7 +18,8 @@ class _ConsumedMealState extends State<ConsumedMeal> {
   List<bool> selected = [];
 
   String getAppBarTitle() {
-    String meal = widget.mealType[0].toUpperCase() + widget.mealType.substring(1);
+    String meal =
+        widget.mealType[0].toUpperCase() + widget.mealType.substring(1);
     switch (widget.filter) {
       case 'Today':
         return '$meal Consumed Today';
@@ -62,11 +63,12 @@ class _ConsumedMealState extends State<ConsumedMeal> {
     if (currentUser == null) return;
     final uid = currentUser.uid;
 
-    final snapshot = await FirebaseFirestore.instance
-        .collection('consumedMeals')
-        .doc(uid)
-        .collection(widget.mealType)
-        .get();
+    final snapshot =
+        await FirebaseFirestore.instance
+            .collection('consumedMeals')
+            .doc(uid)
+            .collection(widget.mealType)
+            .get();
 
     List<MealItem> fetchedMeals = [];
 
@@ -78,10 +80,11 @@ class _ConsumedMealState extends State<ConsumedMeal> {
       if (docDate != null && isMatchingFilter(docDate)) {
         final mealId = data['mealId'];
         if (mealId != null) {
-          final mealSnapshot = await FirebaseFirestore.instance
-              .collection('Meals')
-              .doc(mealId)
-              .get();
+          final mealSnapshot =
+              await FirebaseFirestore.instance
+                  .collection('Meals')
+                  .doc(mealId)
+                  .get();
 
           if (mealSnapshot.exists) {
             final mealData = mealSnapshot.data()!;
@@ -127,197 +130,212 @@ class _ConsumedMealState extends State<ConsumedMeal> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: meals.isEmpty
-            ? Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Spacer(),
-            Text(
-              "Oops! No ${widget.mealType[0].toUpperCase()}${widget.mealType.substring(1)} meals found. Please try changing the filter and try again.",
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () {
-                // Add Meal logic
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                padding: const EdgeInsets.symmetric(
-                    vertical: 16, horizontal: 32),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text(
-                'Add Meal',
-                style:
-                TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-            ),
-            const Spacer(),
-          ],
-        )
-            : Column(
-          children: [
-            Expanded(
-              child: ListView.builder(
-                itemCount: meals.length,
-                itemBuilder: (context, index) {
-                  return ListTile(
-                    leading: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        meals[index].imageUrl,
-                        width: 50,
-                        height: 50,
-                        fit: BoxFit.cover,
+        child:
+            meals.isEmpty
+                ? Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Spacer(),
+                    Text(
+                      "Oops! No ${widget.mealType[0].toUpperCase()}${widget.mealType.substring(1)} meals found. Please try changing the filter and try again.",
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: () {
+                        // Add Meal logic
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 16,
+                          horizontal: 32,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Add Meal',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                    title: Text(meals[index].title),
-                    subtitle: Text(
-                      'Calories: ${meals[index].calories} , Carbs: ${meals[index].carbs} , Protein: ${meals[index].protein}',
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit),
-                          onPressed: () async {
-                            final currentUser =
-                                FirebaseAuth.instance.currentUser;
-                            if (currentUser == null) return;
-
-                            final uid = currentUser.uid;
-                            final consumedMealRef = FirebaseFirestore
-                                .instance
-                                .collection('consumedMeals')
-                                .doc(uid)
-                                .collection(widget.mealType)
-                                .doc(meals[index].id);
-
-                            final result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => EditConsumedMeal(
-                                  consumedMealRef: consumedMealRef,
-                                  mealId: meals[index].id,
-                                  mealType: widget.mealType,
-                                ),
+                    const Spacer(),
+                  ],
+                )
+                : Column(
+                  children: [
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: meals.length,
+                        itemBuilder: (context, index) {
+                          return ListTile(
+                            leading: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(
+                                meals[index].imageUrl,
+                                width: 50,
+                                height: 50,
+                                fit: BoxFit.cover,
                               ),
-                            );
+                            ),
+                            title: Text(meals[index].title),
+                            subtitle: Text(
+                              'Calories: ${meals[index].calories} , Carbs: ${meals[index].carbs} , Protein: ${meals[index].protein}',
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit),
+                                  onPressed: () async {
+                                    final currentUser =
+                                        FirebaseAuth.instance.currentUser;
+                                    if (currentUser == null) return;
 
-                            if (result == true) {
-                              fetchMeals(); // Refresh
-                            }
-                          },
+                                    final uid = currentUser.uid;
+                                    final consumedMealRef = FirebaseFirestore
+                                        .instance
+                                        .collection('consumedMeals')
+                                        .doc(uid)
+                                        .collection(widget.mealType)
+                                        .doc(meals[index].id);
+
+                                    final result = await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder:
+                                            (context) => EditConsumedMeal(
+                                              consumedMealRef: consumedMealRef,
+                                              mealId: meals[index].id,
+                                              mealType: widget.mealType,
+                                            ),
+                                      ),
+                                    );
+
+                                    if (result == true) {
+                                      fetchMeals(); // Refresh
+                                    }
+                                  },
+                                ),
+                                Checkbox(
+                                  value: selected[index],
+                                  onChanged: (bool? value) {
+                                    setState(() {
+                                      selected[index] = value ?? false;
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                            onTap: () {
+                              setState(() {
+                                selected[index] = !selected[index];
+                              });
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              // Add Meal logic
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text(
+                              'Add Meal',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
                         ),
-                        Checkbox(
-                          value: selected[index],
-                          onChanged: (bool? value) {
-                            setState(() {
-                              selected[index] = value ?? false;
-                            });
-                          },
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              final selectedIndexes =
+                                  selected
+                                      .asMap()
+                                      .entries
+                                      .where((entry) => entry.value)
+                                      .map((entry) => entry.key)
+                                      .toList();
+
+                              if (selectedIndexes.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      "You haven't selected any meal checkbox yet. Please try again!",
+                                    ),
+                                    backgroundColor: Colors.orange,
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              final uid =
+                                  FirebaseAuth.instance.currentUser?.uid;
+                              if (uid == null) return;
+
+                              for (var index in selectedIndexes) {
+                                final mealId = meals[index].id;
+                                await FirebaseFirestore.instance
+                                    .collection('consumedMeals')
+                                    .doc(uid)
+                                    .collection(widget.mealType)
+                                    .doc(mealId)
+                                    .delete();
+                              }
+
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Successfully Deleted'),
+                                  backgroundColor: Colors.green,
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                              fetchMeals();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text(
+                              'Delete',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
                         ),
                       ],
                     ),
-                    onTap: () {
-                      setState(() {
-                        selected[index] = !selected[index];
-                      });
-                    },
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      // Add Meal logic
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text(
-                      'Add Meal',
-                      style: TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ),
+                  ],
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      final selectedIndexes = selected
-                          .asMap()
-                          .entries
-                          .where((entry) => entry.value)
-                          .map((entry) => entry.key)
-                          .toList();
-
-                      if (selectedIndexes.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                                "You haven't selected any meal checkbox yet. Please try again!"),
-                            backgroundColor: Colors.orange,
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                        return;
-                      }
-
-                      final uid =
-                          FirebaseAuth.instance.currentUser?.uid;
-                      if (uid == null) return;
-
-                      for (var index in selectedIndexes) {
-                        final mealId = meals[index].id;
-                        await FirebaseFirestore.instance
-                            .collection('consumedMeals')
-                            .doc(uid)
-                            .collection(widget.mealType)
-                            .doc(mealId)
-                            .delete();
-                      }
-
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Successfully Deleted'),
-                          backgroundColor: Colors.green,
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                      fetchMeals();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text(
-                      'Delete',
-                      style: TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
       ),
     );
   }

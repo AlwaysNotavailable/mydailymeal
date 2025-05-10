@@ -14,8 +14,7 @@ class EditProfilePage extends StatefulWidget {
 class _EditProfilePageState extends State<EditProfilePage> {
   final TextEditingController _usernameCTRL = TextEditingController();
   final TextEditingController _ageCTRL = TextEditingController();
-  final TextEditingController _heightCTRL = TextEditingController();
-  final TextEditingController _weightCTRL = TextEditingController();
+
   String? _imageUrl;
   XFile? _pickedFile;
   DateTime? _birthDate;
@@ -27,6 +26,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
   void initState() {
     super.initState();
     loadUserData();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    _usernameCTRL.dispose();
   }
 
   @override
@@ -136,35 +141,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 border: OutlineInputBorder(borderSide: BorderSide.none),
               ),
             ),
-            const SizedBox(height: 20),
-            TextFormField(
-              controller: _heightCTRL,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: Colors.black12,
-                border: OutlineInputBorder(borderSide: BorderSide.none),
-                contentPadding: EdgeInsets.symmetric(
-                  vertical: 10.0,
-                  horizontal: 20.0,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            TextFormField(
-              controller: _weightCTRL,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: Colors.black12,
-                border: OutlineInputBorder(borderSide: BorderSide.none),
-                contentPadding: EdgeInsets.symmetric(
-                  vertical: 10.0,
-                  horizontal: 20.0,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 80),
             SizedBox(
               width: double.infinity,
               height: 43,
@@ -186,26 +163,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
               ),
             ),
             const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: 43,
-              child: ElevatedButton(
-                onPressed: deleteAccount,
-                child: Text(
-                  "Delete Account",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10.0),
-                  ),
-                ),
-              ),
-            ),
           ],
         ),
       ),
@@ -223,10 +180,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
       _ageCTRL.text = data['age'].toString();
       if (data['birthDate'] != null) {
         _birthDate = (data['birthDate'] as Timestamp).toDate();
-        _ageCTRL.text = _calculateAge(_birthDate!).toString();
+        _ageCTRL.text = '${_calculateAge(_birthDate!)} yrs';
       }
-      _heightCTRL.text = data['height'].toString();
-      _weightCTRL.text = data['weight'].toString();
       _imageUrl = data['image'] ?? '';
     });
   }
@@ -281,8 +236,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
       'age': age,
       'birthDate': _birthDate,
       'image': imageUrl,
-      'height': _heightCTRL.text,
-      'weight': _weightCTRL.text,
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -292,57 +245,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
       ),
     );
     Navigator.pop(context);
-  }
-
-  Future<void> deleteAccount() async {
-    try {
-      final user = FirebaseAuth.instance.currentUser!;
-      final uid = user.uid;
-
-      // Step 1: Delete profile image from Firebase Storage
-      try {
-        final ref = FirebaseStorage.instance.ref().child(
-          'profile_images/$uid.jpg',
-        );
-        await ref.delete();
-      } catch (e) {
-        print("Image deletion skipped or failed: $e"); // Optional error log
-      }
-
-      // Step 2: Delete user document from Firestore
-      await FirebaseFirestore.instance.collection('users').doc(uid).delete();
-
-      // Step 3: Delete Firebase Auth account
-      await user.delete();
-
-      // Step 4: Show confirmation and redirect
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Account deleted successfully'),
-          backgroundColor: Colors.red,
-        ),
-      );
-
-      Navigator.of(
-        context,
-      ).popUntil((route) => route.isFirst); // Go back to login or home page
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'requires-recent-login') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Please log in again to delete your account'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.message}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
   }
 
   int _calculateAge(DateTime birthDate) {
