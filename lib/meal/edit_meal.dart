@@ -178,7 +178,38 @@ class _EditMealState extends State<EditMeal> {
 
     try {
       if (deleteAll) {
-        // Delete from all users' collections
+        // Check if meal exists in any meal type collections
+        bool mealExistsInHistory = false;
+        String mealType = '';
+
+        // Check breakfast, lunch, and dinner collections
+        for (var type in ['breakfast', 'lunch', 'dinner']) {
+          final historySnapshot = await FirebaseFirestore.instance
+              .collection(type)
+              .where('mealId', isEqualTo: widget.meal['id'])
+              .get();
+
+          if (historySnapshot.docs.isNotEmpty) {
+            mealExistsInHistory = true;
+            mealType = type;
+            break;
+          }
+        }
+
+        if (mealExistsInHistory) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Cannot delete meal. It exists in $mealType collection.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+
+        // If meal doesn't exist in any history, proceed with deletion
+        // First delete all custom data
         final usersSnapshot = await FirebaseFirestore.instance.collection('users').get();
         for (var userDoc in usersSnapshot.docs) {
           await FirebaseFirestore.instance
@@ -188,6 +219,12 @@ class _EditMealState extends State<EditMeal> {
               .doc('data')
               .delete();
         }
+
+        // Then delete the main meal document
+        await FirebaseFirestore.instance
+            .collection('Meals')
+            .doc(widget.meal['id'])
+            .delete();
       } else {
         // Delete only from current user's collection
         await FirebaseFirestore.instance
