@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'Breakfast.dart';
-import 'Lunch.dart';
-import 'Dinner.dart';
+import 'ConsumedMeal.dart';
 import 'IdealWeight.dart';
 import 'meal/meal.dart';
 import 'profile.dart';
@@ -115,7 +113,6 @@ class _HomeState extends State<Home> {
   void fetchData() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
-    print('Current UID: $uid');
 
     setState(() {
       totalCalories = 0;
@@ -132,12 +129,15 @@ class _HomeState extends State<Home> {
     for (final meal in collections) {
       final snapshot =
           await FirebaseFirestore.instance
-              .collection(meal)
+              .collection('consumedMeals')
+              .doc(uid)
+              .collection(
+                meal,
+              ) // subcollection also named 'breakfast', 'lunch', or 'dinner'
               .where(
                 'date',
                 isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
               )
-              .where('user', isEqualTo: uid)
               .get();
 
       for (final doc in snapshot.docs) {
@@ -228,38 +228,22 @@ class _HomeState extends State<Home> {
                           'Calories: ${meal['calories']}cal , Carbs: ${meal['carbs']}g carbs , Protein: ${meal['protein']}g',
                         ),
                         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                        onTap: () {
-                          if (title == 'Breakfast') {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder:
-                                    (context) =>
-                                        Breakfast(filter: selectedFilter),
-                              ),
-                            );
-                          } else if (title == 'Lunch') {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder:
-                                    (context) => Lunch(filter: selectedFilter),
-                              ),
-                            );
-                          } else if (title == 'Dinner') {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder:
-                                    (context) => Dinner(filter: selectedFilter),
-                              ),
-                            );
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('No page for $title yet!'),
-                              ),
-                            );
+                        onTap: () async {
+                          final mealType =
+                              title
+                                  .toLowerCase(); // 'breakfast', 'lunch', or 'dinner'
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder:
+                                  (context) => ConsumedMeal(
+                                    mealType: mealType,
+                                    filter: selectedFilter,
+                                  ),
+                            ),
+                          );
+                          if (result == true) {
+                            fetchData(); // Refresh home page after returning from TodayMeal page
                           }
                         },
                       );

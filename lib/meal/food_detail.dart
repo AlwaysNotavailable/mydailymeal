@@ -22,6 +22,7 @@ class FoodDetail extends StatefulWidget {
 
 class _FoodDetailState extends State<FoodDetail> {
   bool _isLoading = false;
+  bool _isAdmin = false;
   Map<String, dynamic>? _userCustomData;
   List<Map<String, dynamic>> _reviews = [];
   final _commentController = TextEditingController();
@@ -37,12 +38,26 @@ class _FoodDetailState extends State<FoodDetail> {
     super.initState();
     _loadUserCustomData();
     _loadReviews();
+    _checkAdminStatus();
   }
 
   @override
   void dispose() {
     _commentController.dispose();
     super.dispose();
+  }
+
+  Future<void> _checkAdminStatus() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      setState(() {
+        _isAdmin = userDoc.data()?['isAdmin'] ?? false;
+      });
+    }
   }
 
   Future<void> _loadUserCustomData() async {
@@ -92,14 +107,15 @@ class _FoodDetailState extends State<FoodDetail> {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => EditMeal(
-          meal: _userCustomData ?? widget.meal,
-        ),
+        builder: (context) => EditMeal(meal: widget.meal),
       ),
     );
-
+    
     if (result == true) {
-      _loadUserCustomData();
+      // Refresh the meal data
+      await _loadUserCustomData();
+      // Return true to trigger refresh in meal page
+      Navigator.pop(context, true);
     }
   }
 
@@ -233,14 +249,19 @@ class _FoodDetailState extends State<FoodDetail> {
     }
   }
 
-  Future<void> _deleteReview() async {
-    if (_userReview == null) return;
+  Future<void> _deleteReview(Map<String, dynamic> review) async {
+    print('Deleting review: ${review['id']}'); // Debug print
+    print('Is admin: $_isAdmin'); // Debug print
+    print('Review user: ${review['userId']}'); // Debug print
+    print('Current user: ${FirebaseAuth.instance.currentUser?.uid}'); // Debug print
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Review'),
-        content: const Text('Are you sure you want to delete your review?'),
+        content: Text(_isAdmin 
+          ? 'Are you sure you want to delete this review?'
+          : 'Are you sure you want to delete your review?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -248,46 +269,60 @@ class _FoodDetailState extends State<FoodDetail> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
             child: const Text('Delete'),
           ),
         ],
       ),
     );
 
-    if (confirmed != true) return;
+    if (confirmed == true) {
+      try {
+        final success = await ReviewService.deleteReview(
+          widget.meal['id']?.toString() ?? '',
+          review['id'],
+        );
 
-    setState(() => _isLoading = true);
-    try {
-      final success = await ReviewService.deleteReview(
-        widget.meal['id'],
-        _userReview!['id'],
-      );
-
-      if (success) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Review deleted successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          
+          setState(() {
+            _reviews.removeWhere((r) => r['id'] == review['id']);
+            if (review['id'] == _userReview?['id']) {
+              _userReview = null;
+            }
+            // Recalculate average rating
+            if (_reviews.isNotEmpty) {
+              final totalRating = _reviews.fold<double>(0, (sum, r) => sum + (r['rating'] as int));
+              _averageRating = totalRating / _reviews.length;
+            } else {
+              _averageRating = 0;
+            }
+          });
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to delete review. You may not have permission.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        print('Error deleting review: $e');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Review deleted successfully!'),
-            backgroundColor: Colors.green,
+            content: Text('Error deleting review'),
+            backgroundColor: Colors.red,
           ),
         );
-        _commentController.clear();
-        setState(() {
-          _selectedRating = 0;
-          _isAnonymous = false;
-          _userReview = null;
-        });
-        _loadReviews();
       }
-    } catch (e) {
-      print('Error deleting review: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error deleting review'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      setState(() => _isLoading = false);
     }
   }
 
@@ -534,7 +569,7 @@ class _FoodDetailState extends State<FoodDetail> {
                                       ),
                                       const SizedBox(width: 8),
                                       TextButton.icon(
-                                        onPressed: _deleteReview,
+                                        onPressed: () => _deleteReview(_userReview!),
                                         icon: const Icon(Icons.delete, color: Colors.red),
                                         label: const Text('Delete', style: TextStyle(color: Colors.red)),
                                       ),
@@ -610,53 +645,7 @@ class _FoodDetailState extends State<FoodDetail> {
                         // Other reviews list
                         ..._reviews
                             .where((review) => review['userId'] != FirebaseAuth.instance.currentUser?.uid)
-                            .map((review) => Card(
-                                  margin: const EdgeInsets.only(bottom: 8),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16.0),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Text(
-                                              review['isAnonymous'] == true 
-                                                  ? 'Anonymous'
-                                                  : review['userName'] ?? 'Unknown User',
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                            const Spacer(),
-                                            Text(
-                                              review['date'] != null
-                                                  ? (review['date'] as Timestamp).toDate().toString().split(' ')[0]
-                                                  : 'Unknown date',
-                                              style: TextStyle(
-                                                color: Colors.grey[600],
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Row(
-                                          children: List.generate(5, (index) {
-                                            return Icon(
-                                              index < (review['rating'] as int)
-                                                  ? Icons.star
-                                                  : Icons.star_border,
-                                              color: Colors.amber,
-                                              size: 16,
-                                            );
-                                          }),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Text(review['comment'] ?? ''),
-                                      ],
-                                    ),
-                                  ),
-                                ))
+                            .map((review) => _buildReviewItem(review))
                             .toList(),
                       ],
                     ),
@@ -684,6 +673,64 @@ class _FoodDetailState extends State<FoodDetail> {
             style: const TextStyle(fontSize: 16),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildReviewItem(Map<String, dynamic> review) {
+    final user = FirebaseAuth.instance.currentUser;
+    final isOwnReview = user?.uid == review['userId'];
+    final canDelete = _isAdmin || isOwnReview;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    review['isAnonymous'] ? 'Anonymous' : review['userName'] ?? 'Unknown User',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+                if (canDelete)
+                  IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    onPressed: () => _deleteReview(review),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: List.generate(5, (index) {
+                return Icon(
+                  index < review['rating'] ? Icons.star : Icons.star_border,
+                  color: Colors.amber,
+                );
+              }),
+            ),
+            const SizedBox(height: 8),
+            Text(review['comment'] ?? ''),
+            const SizedBox(height: 8),
+            Text(
+              review['date'] != null
+                  ? (review['date'] as Timestamp).toDate().toString().split('.')[0]
+                  : 'Unknown date',
+              style: const TextStyle(
+                color: Colors.grey,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -150,7 +150,14 @@ class ReviewService {
       final reviewRef = _firestore.collection('Meals').doc(mealId).collection('Review').doc(reviewId);
       final reviewDoc = await reviewRef.get();
 
-      if (!reviewDoc.exists || reviewDoc.data()?['userId'] != user.uid) {
+      if (!reviewDoc.exists) return false;
+
+      // Check if user is admin
+      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+      final isAdmin = userDoc.data()?['isAdmin'] ?? false;
+
+      // Allow deletion if user is admin or owns the review
+      if (!isAdmin && reviewDoc.data()?['userId'] != user.uid) {
         return false;
       }
 

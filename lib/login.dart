@@ -52,7 +52,12 @@ class _LoginState extends State<Login> {
                   controller: _emailCTRL,
                   keyboardType: TextInputType.emailAddress,
                   validator:
-                      (value) => value!.isEmpty ? 'Enter your email' : null,
+                      (value) =>
+                  value!.isEmpty
+                      ? 'Enter email'
+                      : (!value.contains('@')
+                      ? 'Invalid email follow the format: abc@gmail.com'
+                      : null),
                   decoration: InputDecoration(
                     hintText: 'Email',
                     filled: true,
