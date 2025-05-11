@@ -108,12 +108,15 @@ class _MealPageState extends State<MealPage> {
   Future<void> _fetchMeals() async {
     setState(() => _isLoading = true);
     try {
+      // First fetch Firebase data
       _databaseMeals = await MealService.getAllMeals();
       print('Fetched ${_databaseMeals.length} meals from Firebase');
       setState(() {
         _filteredDatabaseMeals = _databaseMeals;
+        _isLoading = false; // Set loading to false after Firebase data is loaded
       });
 
+      // Then fetch API data in the background
       List<Map<String, dynamic>> apiMeals = [];
       for (int i = 0; i < 10; i++) {
         try {
@@ -133,10 +136,12 @@ class _MealPageState extends State<MealPage> {
                   (meal['title'] == apiMeal['strMeal']))) {
                   apiMeals.add(apiMeal);
                   
-                  setState(() {
-                    _apiMeals = apiMeals;
-                    _filteredApiMeals = apiMeals;
-                  });
+                  if (mounted) {
+                    setState(() {
+                      _apiMeals = apiMeals;
+                      _filteredApiMeals = apiMeals;
+                    });
+                  }
                 }
               }
             }
@@ -150,7 +155,6 @@ class _MealPageState extends State<MealPage> {
       print('Fetched ${apiMeals.length} meals from API');
     } catch (e) {
       print('Error fetching meals: $e');
-    } finally {
       setState(() => _isLoading = false);
     }
   }
@@ -324,8 +328,8 @@ class _MealPageState extends State<MealPage> {
           ],
         ),
         isThreeLine: true,
-        onTap: () {
-          Navigator.push(
+        onTap: () async {
+          final result = await Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => FoodDetail(
@@ -334,6 +338,11 @@ class _MealPageState extends State<MealPage> {
               ),
             ),
           );
+          
+          // Refresh meals if we're returning from FoodDetail
+          if (result == true) {
+            _fetchMeals();
+          }
         },
       ),
     );
