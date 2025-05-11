@@ -38,9 +38,10 @@ class _adminPageState extends State<adminPage> {
           }
 
           // Filter out current admin's own account
-          final users = snapshot.data!.docs
-              .where((doc) => doc.id != currentUserId)
-              .toList();
+          final users =
+              snapshot.data!.docs
+                  .where((doc) => doc.id != currentUserId)
+                  .toList();
 
           if (users.isEmpty) {
             return const Center(child: Text('No other users found.'));
@@ -76,24 +77,39 @@ class _adminPageState extends State<adminPage> {
                         onPressed: () async {
                           final confirm = await showDialog(
                             context: context,
-                            builder: (context) => AlertDialog(
-                              title: Text('Confirm Deletion'),
-                              content: Text(
-                                  'Are you sure you want to delete this user? This cannot be undone.'),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context, false),
-                                  child: Text('Cancel'),
-                                ),
-                                ElevatedButton(
-                                  onPressed: () => Navigator.pop(context, true),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.red,
+                            builder:
+                                (context) => AlertDialog(
+                                  title: Text('Confirm Deletion'),
+                                  content: Text(
+                                    'Are you sure you want to delete this user? This cannot be undone.',
                                   ),
-                                  child: Text('Delete'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed:
+                                          () => Navigator.pop(context, false),
+                                      child: Text(
+                                        'Cancel',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed:
+                                          () => Navigator.pop(context, true),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red,
+                                      ),
+                                      child: Text(
+                                        'Delete',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
                           );
 
                           if (confirm == true) {
@@ -105,7 +121,7 @@ class _adminPageState extends State<adminPage> {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text('User deleted successfully'),
-                                backgroundColor: Colors.red,
+                                backgroundColor: Colors.green,
                               ),
                             );
                           }

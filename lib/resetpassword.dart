@@ -50,7 +50,7 @@ class _ResetpasswordState extends State<Resetpassword> {
                                         ? 'Invalid email follow the format: abc@gmail.com'
                                         : null),
                         decoration: InputDecoration(
-                          hintText: 'email',
+                          hintText: 'Your Email Address',
                           filled: true,
                           fillColor: Colors.black12,
                           contentPadding: EdgeInsets.symmetric(
