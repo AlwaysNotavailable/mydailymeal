@@ -29,7 +29,7 @@ class _ProfileState extends State<Profile> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
       final doc =
-      await FirebaseFirestore.instance.collection('users').doc(uid).get();
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
       if (doc.exists && doc['isAdmin'] == true) {
         setState(() {
           _isAdmin = true;
