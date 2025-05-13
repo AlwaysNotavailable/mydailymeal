@@ -162,17 +162,46 @@ class _LoginState extends State<Login> {
 
   Future<void> _loginUser(String email, String password) async {
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      // Sign in using Firebase Authentication
+      UserCredential userCredential = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(email: email, password: password);
 
-      //Once login successfully
+      //  Get the user's UID
+      String uid = userCredential.user!.uid;
+
+      // Check if this UID exists in Firestore `users` collection
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+
+      if (!userDoc.exists) {
+        // If user record is NOT found in Firestore, show error
+        await FirebaseAuth.instance.signOut(); // optional: sign user out
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Account not found.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // navigate to home
       Navigator.pushNamed(context, '/home', arguments: email);
-    } on FirebaseException catch (e) {
+    } on FirebaseAuthException catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Login failed: ${e.message}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } catch (e) {
+      // Catch any other errors
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('An unexpected error occurred.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -186,3 +215,4 @@ class _LoginState extends State<Login> {
     super.dispose();
   }
 }
+
